@@ -557,9 +557,9 @@ class App {
         <div class="section">
           <h4>Kontakt- und Wohninformationen</h4>
           <div class="field-grid three-cols">
-            <div class="field"><label>Wohnort</label><div>${escapeHtml(p.city)}</div></div>
             <div class="field"><label>Straße</label><div>${escapeHtml(p.street)}</div></div>
             <div class="field"><label>Postleitzahl</label><div>${escapeHtml(p.postalCode)}</div></div>
+            <div class="field"><label>Wohnort</label><div>${escapeHtml(p.city)}</div></div>
             <div class="field"><label>Mobiltelefon</label><div>${escapeHtml(p.mobile)}</div></div>
             <div class="field"><label>Festnetztelefon</label><div>${escapeHtml(p.phone)}</div></div>
             <div class="field"><label>E-Mail</label><div>${escapeHtml(p.email)}</div></div>
@@ -570,9 +570,9 @@ class App {
           <div class="field-grid three-cols">
             <div class="field"><label>Krankenkasse</label><div>${escapeHtml(p.insurance)}${p.customInsurance ? ` / ${escapeHtml(p.customInsurance)}` : ''}</div></div>
             <div class="field"><label>Allergien vorhanden</label><div>${p.hasAllergies ? 'Ja' : 'Nein'}</div></div>
-            <div class="field"><label>Besondere Hinweise</label><div>${escapeHtml(p.specialNotes) || '—'}</div></div>
+          ${p.hasAllergies ? `<div class="field"><label>Allergieinformationen</label><div class="notes-box">${escapeHtml(p.allergyInfo) || 'Keine Informationen'}</div></div>` : ''}
           </div>
-          ${p.hasAllergies ? `<div class="field-block"><label>Allergieinformationen</label><div class="notes-box">${escapeHtml(p.allergyInfo) || 'Keine Informationen'}</div></div>` : ''}
+          <div class="field-block"><label>Besondere Hinweise</label><div class="notes-box">${escapeHtml(p.specialNotes) || '—'}</div></div>
         </div>
       `;
       this.view.appendChild(content);
@@ -689,10 +689,10 @@ class App {
           <h4>Personensorgeberechtigte</h4>
           <div class="field-grid three-cols">
             <div class="field"><label>Name Mutter</label><div>${escapeHtml(p.motherName)}</div></div>
-            <div class="field"><label>Telefon Mutter</label><div>${escapeHtml(p.motherPhone)}</div></div>
             <div class="field"><label>Name Vater</label><div>${escapeHtml(p.fatherName)}</div></div>
-            <div class="field"><label>Telefon Vater</label><div>${escapeHtml(p.fatherPhone)}</div></div>
             <div class="field"><label>Elternkontakt möglich</label><div>${escapeHtml(p.parentContactPossible)}</div></div>
+            <div class="field"><label>Telefon Mutter</label><div>${escapeHtml(p.motherPhone)}</div></div>
+            <div class="field"><label>Telefon Vater</label><div>${escapeHtml(p.fatherPhone)}</div></div>
           </div>
         </div>
         <div class="section">
@@ -703,7 +703,7 @@ class App {
             <div class="field"><label>Persönliche Interessen</label><div>${(p.interests || []).join(', ') || '—'}</div></div>
             <div class="field"><label>Soziale Netzwerke</label><div>${(p.socialNetworks || []).join(', ') || '—'}</div></div>
             <div class="field"><label>Auftreten</label><div>${(p.appearance || []).join(', ') || '—'}</div></div>
-            <div class="field"><label>Besondere Aufmerksamkeit</label><div>${escapeHtml(p.specialAttention)}</div></div>
+            <div class="field"><label>Besondere Beobachtung nötig?</label><div>${escapeHtml(p.specialAttention)}</div></div>
             <div class="field"><label>Stärken</label><div>${(p.strengths || []).join(', ') || '—'}</div></div>
           </div>
           <div class="field-block"><label>Zusätzliche Hinweise</label><div class="notes-box">${escapeHtml(p.environmentNotes) || 'Keine Hinweise'}</div></div>
@@ -725,9 +725,9 @@ class App {
       gender: fd.get('gender') || 'Keine Angabe',
       birthDate: fd.get('birthDate') || '',
       birthplace: fd.get('birthplace') || '',
-      city: fd.get('city') || '',
       street: fd.get('street') || '',
       postalCode: fd.get('postalCode') || '',
+      city: fd.get('city') || '',
       mobile: fd.get('mobile') || '',
       phone: fd.get('phone') || '',
       email: fd.get('email') || '',
@@ -749,10 +749,10 @@ class App {
       extraNotes: fd.get('extraNotes') || '',
       internalId: fd.get('internalId') || '',
       motherName: fd.get('motherName') || '',
-      motherPhone: fd.get('motherPhone') || '',
       fatherName: fd.get('fatherName') || '',
-      fatherPhone: fd.get('fatherPhone') || '',
       parentContactPossible: fd.get('parentContactPossible') || 'Ja',
+      motherPhone: fd.get('motherPhone') || '',
+      fatherPhone: fd.get('fatherPhone') || '',
       friendCircle: fd.getAll('friendCircle'),
       hobbies: fd.getAll('hobbies'),
       interests: fd.getAll('interests'),
@@ -865,9 +865,9 @@ class App {
       <div class="section">
         <h4>Kontakt- und Wohninformationen</h4>
         <div class="field-grid three-cols">
-          <div class="field"><label>Wohnort</label><input name="city" type="text" value="${escapeHtml(p.city)}"></div>
           <div class="field"><label>Straße</label><input name="street" type="text" value="${escapeHtml(p.street)}"></div>
           <div class="field"><label>Postleitzahl</label><input name="postalCode" type="text" value="${escapeHtml(p.postalCode)}"></div>
+          <div class="field"><label>Wohnort</label><input name="city" type="text" value="${escapeHtml(p.city)}"></div>
           <div class="field"><label>Mobiltelefon</label><input name="mobile" type="text" value="${escapeHtml(p.mobile)}"></div>
           <div class="field"><label>Festnetztelefon</label><input name="phone" type="text" value="${escapeHtml(p.phone)}"></div>
           <div class="field"><label>E-Mail</label><input name="email" type="email" value="${escapeHtml(p.email)}"></div>
@@ -939,10 +939,10 @@ class App {
         <h4>Umfeld & Bezugspersonen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Name Mutter</label><input name="motherName" type="text" value="${escapeHtml(p.motherName)}"></div>
-          <div class="field"><label>Telefon Mutter</label><input name="motherPhone" type="text" value="${escapeHtml(p.motherPhone)}"></div>
           <div class="field"><label>Name Vater</label><input name="fatherName" type="text" value="${escapeHtml(p.fatherName)}"></div>
-          <div class="field"><label>Telefon Vater</label><input name="fatherPhone" type="text" value="${escapeHtml(p.fatherPhone)}"></div>
           <div class="field"><label>Elternkontakt möglich</label><select name="parentContactPossible"><option value="" ${p.parentContactPossible === '' ? 'selected' : ''}>—</option>${OPTIONS.parentContactPossible.map(option => `<option value="${option}" ${p.parentContactPossible===option ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
+          <div class="field"><label>Telefon Mutter</label><input name="motherPhone" type="text" value="${escapeHtml(p.motherPhone)}"></div>
+          <div class="field"><label>Telefon Vater</label><input name="fatherPhone" type="text" value="${escapeHtml(p.fatherPhone)}"></div>
           <div class="field"><label>Freundeskreis</label><select name="friendCircle" multiple size="4">${otherPersons.map(person=>`<option value="${person.id}" ${(p.friendCircle||[]).includes(person.id) ? 'selected' : ''}>${escapeHtml(person.givenName)} ${escapeHtml(person.familyName)}</option>`).join('')}</select></div>
           <div class="field"><label>Hobbys</label><select name="hobbies" multiple size="4">${OPTIONS.strengths.map(option => `<option value="${option}" ${(p.hobbies||[]).includes(option) ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
           <div class="field"><label>Persönliche Interessen</label><select name="interests" multiple size="4">${OPTIONS.strengths.map(option => `<option value="${option}" ${(p.interests||[]).includes(option) ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
