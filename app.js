@@ -713,11 +713,91 @@ class App {
     }
   }
 
+  _savePersonEditDraft(){
+    if(this.current.mode !== 'edit') return;
+    const form = this.view.querySelector('form');
+    if(!form) return;
+    const fd = new FormData(form);
+    const draft = this.current.editData || {};
+    Object.assign(draft, {
+      givenName: fd.get('givenName') || '',
+      familyName: fd.get('familyName') || '',
+      gender: fd.get('gender') || 'Keine Angabe',
+      birthDate: fd.get('birthDate') || '',
+      birthplace: fd.get('birthplace') || '',
+      city: fd.get('city') || '',
+      street: fd.get('street') || '',
+      postalCode: fd.get('postalCode') || '',
+      mobile: fd.get('mobile') || '',
+      phone: fd.get('phone') || '',
+      email: fd.get('email') || '',
+      insurance: fd.get('insurance') || 'Keine Angabe',
+      customInsurance: fd.get('customInsurance') || '',
+      hasAllergies: fd.get('hasAllergies') === 'on',
+      allergyInfo: fd.get('allergyInfo') || '',
+      specialNotes: fd.get('specialNotes') || '',
+      nickname: fd.get('nickname') || '',
+      socialRoles: fd.getAll('socialRoles'),
+      friends: fd.getAll('friends'),
+      cooperation: Number(fd.get('cooperation') || 0),
+      reliability: Number(fd.get('reliability') || 0),
+      socialBehavior: Number(fd.get('socialBehavior') || 0),
+      conflictPotential: Number(fd.get('conflictPotential') || 0),
+      auffaelligkeiten: fd.getAll('auffaelligkeiten'),
+      conflicts: fd.getAll('conflicts'),
+      commStyles: fd.getAll('commStyles'),
+      extraNotes: fd.get('extraNotes') || '',
+      internalId: fd.get('internalId') || '',
+      motherName: fd.get('motherName') || '',
+      motherPhone: fd.get('motherPhone') || '',
+      fatherName: fd.get('fatherName') || '',
+      fatherPhone: fd.get('fatherPhone') || '',
+      parentContactPossible: fd.get('parentContactPossible') || 'Ja',
+      friendCircle: fd.getAll('friendCircle'),
+      hobbies: fd.getAll('hobbies'),
+      interests: fd.getAll('interests'),
+      socialNetworks: fd.getAll('socialNetworks'),
+      appearance: fd.getAll('appearance'),
+      specialAttention: fd.get('specialAttention') || 'Nein',
+      strengths: fd.getAll('strengths'),
+      environmentNotes: fd.get('environmentNotes') || '',
+      heightCm: fd.get('heightCm') || '',
+      weightKg: fd.get('weightKg') || '',
+      bodyTypes: fd.getAll('bodyTypes'),
+      eyeColor: fd.get('eyeColor') || '',
+      hairColor: fd.get('hairColor') || '',
+      hairstyles: fd.getAll('hairstyles'),
+      hairstyleNote: fd.get('hairstyleNote') || '',
+      beardTypes: fd.getAll('beardTypes'),
+      specialFeatures: fd.getAll('specialFeatures'),
+      specialFeaturesNote: fd.get('specialFeaturesNote') || '',
+      gaitTypes: fd.getAll('gaitTypes'),
+      presenceTypes: fd.getAll('presenceTypes'),
+      groupTypes: fd.getAll('groupTypes'),
+      recognitionLevel: fd.get('recognitionLevel') || '',
+      behaviorAssessments: fd.getAll('behaviorAssessments'),
+      identityNotes: fd.get('identityNotes') || ''
+    });
+    draft.mainPhoto = draft.mainPhoto || '';
+    draft.extraPhotos = Array.isArray(draft.extraPhotos) ? draft.extraPhotos : [];
+    this.current.editData = draft;
+  }
+
   renderPersonEdit(personId){
     const isEdit = !!personId;
-    const p = isEdit ? this.storage.data.persons.find(x=>x.id===personId) : {
-      givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', created: Date.now() };
-    
+    if(!this.current.editData){
+      if(isEdit){
+        const source = this.storage.data.persons.find(x=>x.id===personId);
+        this.current.editData = source ? JSON.parse(JSON.stringify(source)) : null;
+      }
+      if(!this.current.editData){
+        this.current.editData = {
+          givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', mainPhoto:'', extraPhotos:[], heightCm:'', weightKg:'', bodyTypes:[], eyeColor:'', hairColor:'', hairstyles:[], hairstyleNote:'', beardTypes:[], specialFeatures:[], specialFeaturesNote:'', gaitTypes:[], presenceTypes:[], groupTypes:[], recognitionLevel:'', behaviorAssessments:[], identityNotes:'', created: Date.now()
+        };
+      }
+    }
+    const p = this.current.editData;
+
     const otherPersons = this.storage.data.persons.filter(x=>x.id !== personId);
     const personOptions = otherPersons.map(person => `<option value="${person.id}" ${((p.friends||[]).includes(person.id) || (p.friendCircle||[]).includes(person.id) || (p.conflicts||[]).includes(person.id)) ? 'selected' : ''}>${escapeHtml(person.givenName)} ${escapeHtml(person.familyName)}</option>`).join('');
     const checkbox = p.hasAllergies ? 'checked' : '';
@@ -733,7 +813,7 @@ class App {
     ['stammdaten','sozial','umfeld','identitaetsprofil','vorgaenge'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
       tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[key];
-      tab.addEventListener('click', ()=>{ this.current.tab = key; this.renderPersonEdit(personId); });
+      tab.addEventListener('click', ()=>{ this._savePersonEditDraft(); this.current.tab = key; this.renderPersonEdit(personId); });
       tabs.appendChild(tab);
     });
     this.view.appendChild(tabs);
@@ -1042,11 +1122,12 @@ class App {
         this.storage.addPerson(data);
         this.current = {type:'person',id:data.id,mode:'view',tab:'stammdaten'};
       }
+      this.current.editData = null;
       this.render(); 
     });
 
-    form.querySelector('#cancel2').addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
-    document.getElementById('cancelEdit').addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
+    form.querySelector('#cancel2').addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.current.editData = null; this.render(); });
+    document.getElementById('cancelEdit').addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.current.editData = null; this.render(); });
     
     this.view.appendChild(form);
   }
