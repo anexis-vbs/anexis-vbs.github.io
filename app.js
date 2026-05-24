@@ -1,6 +1,9 @@
 // ANEXIS v0.1 Alpha - Enhanced Design
 // Aktenorientierte Vorgangsbearbeitung mit verbessertem UI/UX
 
+import { initFirebase, FirestoreStorage } from './storageService.js';
+import { USE_FIRESTORE } from './firebase-config.js';
+
 const STORAGE_KEY = 'anexis.v0.1';
 
 const DEFAULT_OPTION_SETS = {
@@ -341,7 +344,7 @@ class Storage {
 
 class App {
   constructor(){
-    this.storage = new Storage(STORAGE_KEY);
+    this.storage = null;
     this.view = document.getElementById('view');
     this.modal = document.getElementById('modal');
     this.modalContent = document.getElementById('modalContent');
@@ -357,7 +360,8 @@ class App {
     this._bindEvents();
     this.theme = this.loadTheme();
     this.applyTheme();
-    this.render();
+    if(this.view) this.view.innerHTML = '<div class="card"><h3>Daten werden geladen…</h3></div>';
+    this.initStorage();
   }
 
   _bindEvents(){
@@ -375,6 +379,23 @@ class App {
     if(this.themeSwitch){
       this.themeSwitch.addEventListener('change', ()=> this.setTheme(this.themeSwitch.checked ? 'light' : 'dark'));
     }
+  }
+
+  async initStorage(){
+    if(USE_FIRESTORE){
+      try{
+        const { firestoreDb } = await initFirebase();
+        const firestoreStorage = new FirestoreStorage(firestoreDb);
+        await firestoreStorage.load();
+        this.storage = firestoreStorage;
+      } catch(error){
+        console.warn('Firestore konnte nicht initialisiert werden, verwende lokalen Speicher.', error);
+        this.storage = new Storage(STORAGE_KEY);
+      }
+    } else {
+      this.storage = new Storage(STORAGE_KEY);
+    }
+    this.render();
   }
 
   loadTheme(){
