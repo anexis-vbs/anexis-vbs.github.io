@@ -1,0 +1,222 @@
+{
+    "gender": [
+        "Männlich",
+        "Weiblich",
+        "Divers",
+        "Keine Angabe"
+    ],
+
+    "insurance": [
+        "AOK",
+        "TK",
+        "Barmer",
+        "DAK",
+        "IKK",
+        "Andere",
+        "Keine Angabe"
+    ],
+
+    "socialRoles": [
+        "Anführer",
+        "Organisator",
+        "Vermittler",
+        "Unterstützer",
+        "Mitläufer",
+        "Einzelgänger",
+        "Außenseiter",
+        "Beobachter",
+        "Stimmungsmacher"
+    ],
+
+    "auffaelligkeiten": [
+        "häufig verspätet",
+        "vergisst Materialien",
+        "impulsiv",
+        "zurückhaltend",
+        "häufig abgelenkt",
+        "übernimmt Verantwortung",
+        "hilfsbereit",
+        "engagiert"
+    ],
+
+    "commStyles": [
+        "ruhig",
+        "direkt",
+        "zurückhaltend",
+        "gesprächig",
+        "höflich",
+        "humorvoll"
+    ],
+
+    "socialNetworks": [
+        "Instagram",
+        "TikTok",
+        "Snapchat",
+        "Discord",
+        "WhatsApp",
+        "YouTube",
+        "Sonstige"
+    ],
+
+    "appearance": [
+        "selbstbewusst",
+        "zurückhaltend",
+        "humorvoll",
+        "engagiert",
+        "ruhig",
+        "kontaktfreudig",
+        "hilfsbereit"
+    ],
+
+    "strengths": [
+        "Organisation",
+        "Teamarbeit",
+        "Kreativität",
+        "Hilfsbereitschaft",
+        "Verantwortung",
+        "Führung"
+    ],
+
+    "parentContactPossible": [
+        "Ja",
+        "Nur Mutter",
+        "Nur Vater",
+        "Eingeschränkt",
+        "Nur in wichtigen Fällen",
+        "Nicht möglich"
+    ],
+
+    "bodyTypes": [
+        "sehr schlank",
+        "schlank",
+        "durchschnittlich",
+        "sportlich",
+        "kräftig",
+        "stämmig"
+    ],
+
+    "eyeColors": [
+        "Blau",
+        "Grün",
+        "Braun",
+        "Grau",
+        "Hasel",
+        "Mischfarbe",
+        "Sonstige"
+    ],
+
+    "hairColors": [
+        "Blond",
+        "Braun",
+        "Schwarz",
+        "Rot",
+        "Grau",
+        "Gefärbt",
+        "Sonstige"
+    ],
+
+    "hairstyles": [
+        "Kurzhaar",
+        "Mittellang",
+        "Langhaar",
+        "Lockig",
+        "Glatt",
+        "Undercut",
+        "Seitenscheitel",
+        "Zopf",
+        "Dutt",
+        "Glatze",
+        "Sonstige"
+    ],
+
+    "beardTypes": [
+        "Kein Bart",
+        "Dreitagebart",
+        "Vollbart",
+        "Schnurrbart",
+        "Kinnbart",
+        "Sonstige"
+    ],
+
+    "specialFeatures": [
+        "Brille",
+        "Zahnspange",
+        "Narbe",
+        "Muttermal",
+        "Tattoo",
+        "Piercing",
+        "Sommersprossen",
+        "Sonstige"
+    ],
+
+    "gaitTypes": [
+        "ruhig",
+        "hektisch",
+        "sportlich",
+        "selbstbewusst",
+        "auffällig",
+        "unauffällig",
+        "zurückhaltend"
+    ],
+
+    "presenceTypes": [
+        "freundlich",
+        "höflich",
+        "direkt",
+        "humorvoll",
+        "selbstbewusst",
+        "zurückhaltend",
+        "dominant",
+        "hilfsbereit",
+        "engagiert"
+    ],
+
+    "groupTypes": [
+        "Freundeskreis A",
+        "Freundeskreis B",
+        "Sportgruppe",
+        "Verein",
+        "AG",
+        "Projektgruppe",
+        "Sonstige"
+    ],
+
+    "recognitionLevels": [
+        "niedrig",
+        "mittel",
+        "hoch"
+    ],
+    
+    "behaviorAssessments": [
+        "hilfsbereit",
+        "verantwortungsbewusst",
+        "zuverlässig",
+        "impulsiv",
+        "konfliktbereit",
+        "ruhig",
+        "kontaktfreudig",
+        "engagiert",
+        "zurückhaltend"
+    ],
+
+    "priorities": [
+        "Niedrig",
+        "Mittel",
+        "Hoch",
+        "Dringend",
+        "Kritisch"
+    ],
+
+    "measureActions": [
+        "Telefonische Kontaktaufnahme",
+        "Vor-Ort-Besuch",
+        "Schriftliche Aufforderung",
+        "Mediation",
+        "Intervention",
+        "Weiterleitung",
+        "Überwachung",
+        "Dokumentation",
+        "Beratung",
+        "Kontrolle"
+    ]
+}
