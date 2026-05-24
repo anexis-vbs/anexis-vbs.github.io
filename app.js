@@ -783,6 +783,35 @@ class App {
     this.current.editData = draft;
   }
 
+  _attachPersonEditDraftListeners(form){
+    if(!form || !this.current.editData) return;
+    const draft = this.current.editData;
+    const updateField = (input) => {
+      const name = input.name;
+      if(!name) return;
+      if(input.type === 'checkbox'){
+        draft[name] = input.checked;
+        return;
+      }
+      if(input.multiple){
+        draft[name] = Array.from(input.selectedOptions).map(option => option.value);
+        return;
+      }
+      draft[name] = input.value;
+    };
+
+    form.querySelectorAll('input,textarea,select').forEach(input => {
+      if(!input.name) return;
+      if(input.type === 'file'){
+        return;
+      }
+      input.addEventListener('change', () => updateField(input));
+      if(input.tagName.toLowerCase() !== 'select'){
+        input.addEventListener('input', () => updateField(input));
+      }
+    });
+  }
+
   renderPersonEdit(personId){
     const isEdit = !!personId;
     if(!this.current.editData){
@@ -813,7 +842,7 @@ class App {
     ['stammdaten','sozial','umfeld','identitaetsprofil','vorgaenge'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
       tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[key];
-      tab.addEventListener('click', ()=>{ this._savePersonEditDraft(); this.current.tab = key; this.renderPersonEdit(personId); });
+      tab.addEventListener('click', ()=>{ this._savePersonEditDraft(); this.current.tab = key; this.render(); });
       tabs.appendChild(tab);
     });
     this.view.appendChild(tabs);
@@ -879,12 +908,12 @@ class App {
         <h4>Identitätsprofil</h4>
         <div class="field-block">
           <label>Hauptfoto</label>
-          <input id="mainPhotoInput" type="file" accept="image/*">
+          <input id="mainPhotoInput" name="mainPhoto" type="file" accept="image/*">
           <div id="mainPhotoPreview" class="photo-preview">${p.mainPhoto ? `<img src="${p.mainPhoto}" alt="Hauptfoto">` : '<div class="muted">Kein Bild ausgewählt</div>'}</div>
         </div>
         <div class="field-block">
           <label>Zusatzfotos</label>
-          <input id="extraPhotosInput" type="file" accept="image/*" multiple>
+          <input id="extraPhotosInput" name="extraPhotos" type="file" accept="image/*" multiple>
           <div id="extraPhotosGallery" class="photo-gallery">${(p.extraPhotos || []).map((src, idx) => `<div class="photo-thumb"><img src="${src}" alt="Zusatzfoto ${idx + 1}"></div>`).join('') || '<div class="muted">Keine Fotos</div>'}</div>
         </div>
         <div class="field-grid three-cols">
@@ -1021,6 +1050,9 @@ class App {
       if(!mainPhotoInput.files.length) return;
       try {
         currentMainPhoto = await readFileAsDataURL(mainPhotoInput.files[0]);
+        if(this.current.editData){
+          this.current.editData.mainPhoto = currentMainPhoto;
+        }
         renderMainPhotoPreview();
       } catch(e) { console.error(e); }
     });
@@ -1032,6 +1064,9 @@ class App {
         try {
           currentExtraPhotos.push(await readFileAsDataURL(file));
         } catch(e) { console.error(e); }
+      }
+      if(this.current.editData){
+        this.current.editData.extraPhotos = [...currentExtraPhotos];
       }
       extraPhotosInput.value = '';
       renderExtraPhotosGallery();
@@ -1048,6 +1083,8 @@ class App {
         option.selected = !option.selected;
       });
     });
+
+    this._attachPersonEditDraftListeners(form);
 
     form.addEventListener('submit', e=>{ 
       e.preventDefault(); 
