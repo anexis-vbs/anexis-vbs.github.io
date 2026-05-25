@@ -12,6 +12,11 @@
         "Barmer",
         "DAK",
         "IKK",
+        "KKH",
+        "HEK",
+        "hkk",
+        "BKK",
+        "Private Krankenversicherung",
         "Andere",
         "Keine Angabe"
     ],
@@ -25,18 +30,63 @@
         "Einzelgänger",
         "Außenseiter",
         "Beobachter",
-        "Stimmungsmacher"
+        "Stimmungsmacher",
+        "Klassenclown",
+        "Vertrauensperson",
+        "Meinungsführer",
+        "Helfer",
+        "Neuling",
+        "Beliebt",
+        "Dominant",
+        "Zurückhaltend",
+        "Friedensstifter",
+        "Konfliktauslöser",
+        "Unauffällig",
+        "Drahtzieher im Hintergrund",
+        "Kritiker",
+        "Inspirator",
+        "Witzbold",
+        "Provokateuer",
+        "Ruhepol",
+        "Leistungsorientierter",
+        "Manipulator",
+        "Rebell",
+        "Respektsperson",
+        "Beschützer",
+        "Empathischer Zuhörer",
+        "Kreativer Kopf"
     ],
 
     "auffaelligkeiten": [
         "häufig verspätet",
+        "unaufmerksam",
+        "redet viel",
+        "dauerhaft am Handy",
+        "häufige Stimmungsschwankungen",
+        "Dominantes Verhalten",
         "vergisst Materialien",
         "impulsiv",
         "zurückhaltend",
+        "isoliert sich",
+        "neigt zu Streitereien",
+        "Drang zur Selbstdarstellung",
+        "beeinflussend auf andere",
+        "lacht unangemessen",
         "häufig abgelenkt",
-        "übernimmt Verantwortung",
+        "aggressiv",
+        "provozierend",
+        "unruhig",
+        "laut",
+        "respektlos",
+        "konfliktanfällig",
+        "unzuverlässig",
+        "ängstlich",
+        "nervös",
         "hilfsbereit",
-        "engagiert"
+        "engagiert",
+        "übernimmt Verantwortung",
+        "zuverlässig",
+        "kooperativ"
     ],
 
     "commStyles": [
@@ -45,7 +95,17 @@
         "zurückhaltend",
         "gesprächig",
         "höflich",
-        "humorvoll"
+        "humorvoll",
+        "offen",
+        "selbstbewusst",
+        "unsicher",
+        "respektvoll",
+        "dominant",
+        "sachlich",
+        "emotional",
+        "diplomatisch",
+        "konfliktorientiert",
+        "kooperativ"
     ],
 
     "socialNetworks": [
@@ -55,6 +115,15 @@
         "Discord",
         "WhatsApp",
         "YouTube",
+        "Telegram",
+        "Facebook",
+        "X",
+        "Threads",
+        "Reddit",
+        "Twitch",
+        "Pinterest",
+        "LinkedIn",
+        "Signal",
         "Sonstige"
     ],
 
@@ -65,7 +134,23 @@
         "engagiert",
         "ruhig",
         "kontaktfreudig",
-        "hilfsbereit"
+        "hilfsbereit",
+        "freundlich",
+        "höflich",
+        "offen",
+        "verschlossen",
+        "schüchtern",
+        "dominant",
+        "ernst",
+        "zielstrebig",
+        "motiviert",
+        "gelassen",
+        "nervös",
+        "impulsiv",
+        "verantwortungsbewusst",
+        "verlässlich",
+        "unauffällig",
+        "auffällig"
     ],
 
     "strengths": [
@@ -74,16 +159,34 @@
         "Kreativität",
         "Hilfsbereitschaft",
         "Verantwortung",
-        "Führung"
+        "Führung",
+        "Kommunikation",
+        "Konfliktlösung",
+        "Zuverlässigkeit",
+        "Belastbarkeit",
+        "Selbstständigkeit",
+        "Lernbereitschaft",
+        "Analytisches Denken",
+        "Empathie",
+        "Durchhaltevermögen",
+        "Flexibilität",
+        "Pünktlichkeit",
+        "Technisches Verständnis",
+        "Planungsfähigkeit",
+        "Motivationsfähigkeit"
     ],
 
     "parentContactPossible": [
         "Ja",
         "Nur Mutter",
         "Nur Vater",
+        "Nur Sorgeberechtigte",
         "Eingeschränkt",
         "Nur in wichtigen Fällen",
-        "Nicht möglich"
+        "Nur in schwerwiegenden Fällen",
+        "Nach vorheriger Absprache",
+        "Nicht möglich",
+        "Unbekannt"
     ],
 
     "bodyTypes": [
@@ -92,60 +195,96 @@
         "durchschnittlich",
         "sportlich",
         "kräftig",
-        "stämmig"
+        "stämmig",
+        "übergewichtig",
+        "unbekannt"
     ],
 
     "eyeColors": [
+        "Hellblau",
         "Blau",
-        "Grün",
-        "Braun",
         "Grau",
+        "Grün",
+        "Grün-Braun",
         "Hasel",
+        "Hellbraun",
+        "Braun",
+        "Dunkelbraun",
+        "Schwarz",
+        "Bernsteinfarben",
         "Mischfarbe",
-        "Sonstige"
+        "Sonstige",
+        "Unbekannt"
     ],
 
     "hairColors": [
+        "Hellblond",
         "Blond",
+        "Dunkelblond",
+        "Hellbraun",
         "Braun",
+        "Dunkelbraun",
         "Schwarz",
         "Rot",
         "Grau",
+        "Weiß",
         "Gefärbt",
-        "Sonstige"
+        "Mehrfarbig",
+        "Sonstige",
+        "Unbekannt"
     ],
 
     "hairstyles": [
         "Kurzhaar",
         "Mittellang",
         "Langhaar",
+        "Sehr lang",
         "Lockig",
+        "Gewellt",
         "Glatt",
         "Undercut",
+        "Fade",
         "Seitenscheitel",
+        "Mittelscheitel",
         "Zopf",
         "Dutt",
+        "Pferdeschwanz",
         "Glatze",
+        "Buzz Cut",
+        "Auffällige Frisur",
         "Sonstige"
     ],
 
     "beardTypes": [
         "Kein Bart",
+        "Leichter Bartansatz",
         "Dreitagebart",
         "Vollbart",
         "Schnurrbart",
         "Kinnbart",
+        "Backenbart",
+        "Spitzbart",
+        "voll",
+        "flaumig",
         "Sonstige"
     ],
 
     "specialFeatures": [
         "Brille",
+        "Kontaktlinsen",
         "Zahnspange",
         "Narbe",
         "Muttermal",
+        "Leberfleck",
         "Tattoo",
         "Piercing",
         "Sommersprossen",
+        "Auffällige Stimme",
+        "Auffällige Frisur",
+        "Auffälliger Kleidungsstil",
+        "Gehhilfe",
+        "Hörgerät",
+        "Körperliche Besonderheit",
         "Sonstige"
     ],
 
@@ -156,7 +295,12 @@
         "selbstbewusst",
         "auffällig",
         "unauffällig",
-        "zurückhaltend"
+        "zurückhaltend",
+        "zielstrebig",
+        "nervös",
+        "entspannt",
+        "aufrecht",
+        "gebeugt"
     ],
 
     "presenceTypes": [
@@ -168,35 +312,65 @@
         "zurückhaltend",
         "dominant",
         "hilfsbereit",
-        "engagiert"
+        "engagiert",
+        "respektvoll",
+        "offen",
+        "verschlossen",
+        "gelassen",
+        "nervös",
+        "sachlich",
+        "emotional",
+        "kooperativ",
+        "konfliktorientiert"
     ],
 
     "groupTypes": [
-        "Freundeskreis A",
-        "Freundeskreis B",
+        "Freundeskreis",
         "Sportgruppe",
         "Verein",
         "AG",
         "Projektgruppe",
+        "Musikgruppe",
+        "Gaming-Gruppe",
+        "Lerngruppe",
+        "Schülervertretung",
+        "Klassenkern",
+        "Außenseitergruppe",
+        "Wechselnde Gruppen",
+        "Keine feste Gruppe",
         "Sonstige"
     ],
 
     "recognitionLevels": [
-        "niedrig",
-        "mittel",
-        "hoch"
+        "Sehr niedrig",
+        "Niedrig",
+        "Mittel",
+        "Hoch",
+        "Sehr hoch"
     ],
     
     "behaviorAssessments": [
-        "hilfsbereit",
-        "verantwortungsbewusst",
-        "zuverlässig",
-        "impulsiv",
-        "konfliktbereit",
-        "ruhig",
-        "kontaktfreudig",
-        "engagiert",
-        "zurückhaltend"
+        "Hilfsbereit",
+        "Verantwortungsbewusst",
+        "Zuverlässig",
+        "Kooperativ",
+        "Respektvoll",
+        "Engagiert",
+        "Kontaktfreudig",
+        "Freundlich",
+        "Ruhig",
+        "Zurückhaltend",
+        "Selbstbewusst",
+        "Führungsstark",
+        "Vermittelnd",
+        "Unauffällig",
+        "Impulsiv",
+        "Konfliktbereit",
+        "Provokativ",
+        "Dominant",
+        "Unzuverlässig",
+        "Aggressiv",
+        "Schwer einschätzbar"
     ],
 
     "priorities": [
