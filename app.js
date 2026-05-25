@@ -27,6 +27,7 @@ const DEFAULT_OPTION_SETS = {
   groupTypes: ['Freundeskreis A','Freundeskreis B','Sportgruppe','Verein','AG','Projektgruppe','Sonstige'],
   recognitionLevels: ['niedrig','mittel','hoch'],
   behaviorAssessments: ['hilfsbereit','verantwortungsbewusst','zuverlässig','impulsiv','konfliktbereit','ruhig','kontaktfreudig','engagiert','zurückhaltend'],
+  hintPriorities: ['Hoch','Mittel','Gering'],
   priorities: ['Niedrig','Mittel','Hoch','Dringend','Kritisch'],
   measureActions: ['Telefonische Kontaktaufnahme','Vor-Ort-Besuch','Schriftliche Aufforderung','Mediation','Intervention','Weiterleitung','Überwachung','Dokumentation','Beratung','Kontrolle']
 };
@@ -226,6 +227,7 @@ class Storage {
       recognitionLevel: '',
       behaviorAssessments: [],
       identityNotes: '',
+      hints: [],
       created: Date.now()
     }, person);
 
@@ -259,6 +261,7 @@ class Storage {
     normalized.recognitionLevel = normalized.recognitionLevel || '';
     normalized.behaviorAssessments = Array.isArray(normalized.behaviorAssessments) ? normalized.behaviorAssessments : [];
     normalized.identityNotes = normalized.identityNotes || '';
+    normalized.hints = Array.isArray(normalized.hints) ? normalized.hints : [];
     normalized.hasAllergies = !!normalized.hasAllergies;
     normalized.cooperation = Number.isFinite(normalized.cooperation) ? normalized.cooperation : 0;
     normalized.reliability = Number.isFinite(normalized.reliability) ? normalized.reliability : 0;
@@ -358,11 +361,52 @@ class App {
     this.current = { type: null, id: null, mode: 'view', tab: 'overview' };
 
     this._bindEvents();
+    // close sidebar on nav click when on small screens
+    const navEl = document.querySelector('.nav');
+    navEl?.addEventListener('click', ()=>{ if(window.innerWidth <= 900){ document.body.classList.remove('sidebar-open'); const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); } });
+    // ensure sidebar removed when resizing to large screens
+    window.addEventListener('resize', ()=>{ if(window.innerWidth > 900){ document.body.classList.remove('sidebar-open'); const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); } });
     this.theme = this.loadTheme();
     this.applyTheme();
+    // add sidebar toggle (hamburger) for small screens
+    const topbarLeft = document.querySelector('.topbar-left');
+    if(topbarLeft){
+      const hb = document.createElement('button'); hb.id = 'sidebarToggle'; hb.className = 'hamburger'; hb.setAttribute('aria-label','Menü'); hb.innerHTML = '☰';
+      topbarLeft.insertBefore(hb, topbarLeft.firstChild);
+      hb.addEventListener('click', ()=>{
+        const isOpen = document.body.classList.toggle('sidebar-open');
+        if(isOpen){
+          // add backdrop
+          let bd = document.getElementById('sidebarBackdrop');
+          if(!bd){ bd = document.createElement('div'); bd.id = 'sidebarBackdrop'; bd.className = 'sidebar-backdrop'; bd.addEventListener('click', ()=>{ document.body.classList.remove('sidebar-open'); bd.remove(); }); document.body.appendChild(bd); }
+        } else {
+          const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove();
+        }
+      });
+    }
+
     if(this.view) this.view.innerHTML = '<div class="card"><h3>Daten werden geladen…</h3></div>';
     this.initStorage();
   }
+
+  _initResponsiveControls(){
+    const topbarLeft = document.querySelector('.topbar-left');
+    if(!topbarLeft) return;
+    if(document.querySelector('.hamburger')) return;
+    const hb = document.createElement('button'); hb.id = 'sidebarToggle'; hb.className = 'hamburger'; hb.setAttribute('aria-label','Menü'); hb.innerHTML = '☰';
+    topbarLeft.insertBefore(hb, topbarLeft.firstChild);
+    hb.addEventListener('click', ()=>{
+      const isOpen = document.body.classList.toggle('sidebar-open');
+      if(isOpen){
+        let bd = document.getElementById('sidebarBackdrop');
+        if(!bd){ bd = document.createElement('div'); bd.id = 'sidebarBackdrop'; bd.className = 'sidebar-backdrop'; bd.addEventListener('click', ()=>{ document.body.classList.remove('sidebar-open'); bd.remove(); }); document.body.appendChild(bd); }
+      } else { const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); }
+    });
+    const navEl = document.querySelector('.nav');
+    navEl?.addEventListener('click', ()=>{ if(window.innerWidth <= 900){ document.body.classList.remove('sidebar-open'); const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); } });
+    window.addEventListener('resize', ()=>{ if(window.innerWidth > 900){ document.body.classList.remove('sidebar-open'); const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); } });
+  }
+
 
   _bindEvents(){
     this.navButtons.forEach(b=>b.addEventListener('click',e=>{ 
@@ -416,7 +460,10 @@ class App {
   }
 
   render(){
-    if(this.current.type === 'person' && this.current.id) return this.renderPersonDetail(this.current.id);
+    if(this.current.type === 'person'){
+      if(this.current.mode === 'edit' || this.current.mode === 'new') return this.renderPersonEdit(this.current.id);
+      if(this.current.id) return this.renderPersonDetail(this.current.id);
+    }
     if(this.current.type === 'case' && this.current.id) return this.renderCaseDetail(this.current.id);
 
     switch(this.route){
@@ -464,23 +511,34 @@ class App {
     const people = this.storage.data.persons.filter(p=>{ 
       if(!filter) return true; 
       const q = filter.toLowerCase(); 
-      return `${p.givenName} ${p.familyName}`.toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q); 
+      return `${p.givenName} ${p.familyName}`.toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q) || (Array.isArray(p.remarks) ? p.remarks.some(note=>note.text.toLowerCase().includes(q)) : false);
     });
     
     this.view.innerHTML = '';
     const header = document.createElement('div'); header.className='card'; 
-    header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>Personen</h3><button class="btn primary" id="btnNewPersonMain">+ Person anlegen</button></div>`;
+    header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div style="display:flex;gap:12px;align-items:center"><h3>Personen</h3></div>
+      <div><button class="btn primary" id="btnNewPersonMain">+ Person anlegen</button></div>
+    </div>`;
     this.view.appendChild(header);
     
     const list = document.createElement('div'); list.className='list';
     people.forEach(p=>{
-      const it = document.createElement('div'); it.className='item';
+      const it = document.createElement('div'); it.className='item person-card';
       const left = document.createElement('div'); 
-      left.innerHTML = `<strong>${p.givenName} ${p.familyName}</strong><div class="muted">${escapeHtml(formatDateEU(p.birthDate))}${p.city ? ' • ' + escapeHtml(p.city) : ''}</div>`;
+      const priorityOrder = { Hoch: 3, Mittel: 2, Gering: 1 };
+      const allHints = Array.isArray(p.hints) ? [...p.hints] : [];
+      const visibleHints = allHints.filter(h => h && h.priority && (h.priority === 'Hoch' || h.showOnCard));
+      const hintBadges = visibleHints.map(h => {
+        const cls = h.priority === 'Hoch' ? 'hint-high' : h.priority === 'Mittel' ? 'hint-medium' : 'hint-low';
+        const text = escapeHtml(h.subject || (h.text || '').slice(0, 36) || h.priority);
+        const title = escapeHtml((h.priority || '') + (h.subject ? ' — ' + h.subject : ''));
+        return `<span class="hint-badge ${cls}" title="${title}">${text}</span>`;
+      }).join('');
+      left.innerHTML = `<div class="name-row"><strong>${escapeHtml(p.givenName)} ${escapeHtml(p.familyName)}</strong>${hintBadges}</div><div class="muted">${escapeHtml(formatDateEU(p.birthDate))}${p.city ? ' • ' + escapeHtml(p.city) : ''}</div>`;
       const right = document.createElement('div'); right.style.display = 'flex'; right.style.gap = '8px';
       const btnOpen = document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Akte'; btnOpen.addEventListener('click', ()=>{ this.current = {type:'person', id:p.id, mode:'view', tab:'stammdaten'}; this.render(); });
-      const btnDel = document.createElement('button'); btnDel.className='btn'; btnDel.textContent='🗑'; btnDel.addEventListener('click', ()=>{ if(confirm('Person löschen?')){ this.storage.deletePerson(p.id); this.renderPersonList(filter); } });
-      right.appendChild(btnOpen); right.appendChild(btnDel);
+      right.appendChild(btnOpen);
       it.appendChild(left); it.appendChild(right); 
       list.appendChild(it);
     });
@@ -522,10 +580,10 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['stammdaten', 'sozial', 'umfeld', 'identitaetsprofil','vorgaenge'].forEach(t=>{
+    ['stammdaten', 'sozial', 'umfeld', 'identitaetsprofil','vermerke','hinweise','vorgaenge'].forEach(t=>{
       const tab = document.createElement('div');
       tab.className='tab ' + (t === this.current.tab ? 'active' : '');
-      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[t];
+      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vermerke:'Vermerke', hinweise:'Hinweise', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[t];
       tab.addEventListener('click', ()=>{ this.current.tab=t; this.render(); });
       tabs.appendChild(tab);
     });
@@ -630,6 +688,97 @@ class App {
           this.render();
         });
       });
+    } else if(this.current.tab==='vermerke'){
+      const remarks = Array.isArray(p.remarks) ? p.remarks : [];
+      const remarksHtml = remarks.length ? remarks.map(note => `
+        <div class="section note-entry note-entry--remark">
+          <div class="note-header">
+            <div class="note-title"><strong>Vermerk</strong><div class="note-meta">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+          </div>
+          <div class="notes-box">${escapeHtml(note.text)}</div>
+        </div>
+      `).join('') : '<div class="section"><div class="notes-box">Keine Vermerke vorhanden</div></div>';
+      content.innerHTML = `
+        <div class="section" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div><h4>Vermerke</h4></div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <input type="search" id="personRemarkSearch" placeholder="Suche Vermerke..." style="min-width:220px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);"></input>
+            <button class="btn primary" type="button" id="addPersonRemarkButton">+ Neuer Vermerk</button>
+          </div>
+        </div>
+        <div id="personRemarkCreateArea"></div>
+        <div id="personRemarkList">${remarksHtml}</div>
+      `;
+      this.view.appendChild(content);
+
+      const noteArea = content.querySelector('#personRemarkCreateArea');
+      const addRemarkButton = content.querySelector('#addPersonRemarkButton');
+      const remarkSearch = content.querySelector('#personRemarkSearch');
+      const remarkList = content.querySelector('#personRemarkList');
+      if(remarkSearch){
+        remarkSearch.addEventListener('input', ()=>{
+          const q = remarkSearch.value.trim().toLowerCase();
+          remarkList.querySelectorAll('.note-entry').forEach(ne=>{ ne.style.display = q === '' ? '' : (ne.textContent.toLowerCase().includes(q) ? '' : 'none'); });
+        });
+      }
+      const renderRemarkForm = () => {
+        if(!noteArea) return;
+        noteArea.innerHTML = `
+          <div class="section">
+            <div class="field-block"><label>Neuer Vermerk</label><textarea id="newPersonRemarkText" placeholder="Vermerk eingeben..."></textarea></div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px;">
+              <button class="btn" type="button" id="cancelPersonRemark">Abbrechen</button>
+              <button class="btn primary" type="button" id="savePersonRemark">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveBtn = noteArea.querySelector('#savePersonRemark');
+        const cancelBtn = noteArea.querySelector('#cancelPersonRemark');
+        saveBtn.addEventListener('click', ()=>{
+          const text = (noteArea.querySelector('#newPersonRemarkText')?.value || '').trim();
+          if(!text) return;
+          const notes = Array.isArray(p.remarks) ? [...p.remarks] : [];
+          notes.push({ id: genId('n-'), text, created: Date.now() });
+          this.storage.updatePerson(p.id, { remarks: notes });
+          this.current = { type:'person', id:p.id, mode:'view', tab:'vermerke' };
+          this.render();
+        });
+        cancelBtn.addEventListener('click', ()=>{ if(noteArea) noteArea.innerHTML = ''; });
+      };
+      if(addRemarkButton) addRemarkButton.addEventListener('click', renderRemarkForm);
+      return;
+    } else if(this.current.tab==='hinweise'){
+      const hints = Array.isArray(p.hints) ? p.hints : [];
+      const hintsHtml = hints.length ? hints.map(hint => {
+        const priorityClass = hint.priority === 'Hoch' ? 'note-entry--high' : hint.priority === 'Mittel' ? 'note-entry--medium' : 'note-entry--low';
+        return `
+        <div class="section note-entry ${priorityClass}">
+          <div class="note-header">
+            <div class="note-title"><strong>${escapeHtml(hint.subject || 'Kein Betreff')}</strong><div class="note-meta">${escapeHtml(formatDateTimeBerlin(hint.created))} • ${escapeHtml(hint.priority || '—')}</div></div>
+          </div>
+          <div class="notes-box">${escapeHtml(hint.text)}</div>
+        </div>
+      `;
+      }).join('') : '<div class="section"><div class="notes-box">Keine Hinweise vorhanden</div></div>';
+      content.innerHTML = `
+        <div class="section" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div><h4>Hinweise</h4></div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <input type="search" id="personHintSearch" placeholder="Suche Hinweise..." style="min-width:220px;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);"></input>
+          </div>
+        </div>
+        <div id="personHintList">${hintsHtml}</div>
+      `;
+      this.view.appendChild(content);
+      const hintSearch = content.querySelector('#personHintSearch');
+      const hintList = content.querySelector('#personHintList');
+      if(hintSearch){
+        hintSearch.addEventListener('input', ()=>{
+          const q = hintSearch.value.trim().toLowerCase();
+          hintList.querySelectorAll('.note-entry').forEach(ne=>{ ne.style.display = q === '' ? '' : (ne.textContent.toLowerCase().includes(q) ? '' : 'none'); });
+        });
+      }
+      return;
     } else if(this.current.tab==='vorgaenge'){
       const cases = this.storage.data.cases.filter(c => getCasePersonRoles(c, p.id).length > 0);
       content.innerHTML = `
@@ -821,7 +970,7 @@ class App {
       }
       if(!this.current.editData){
         this.current.editData = {
-          givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', mainPhoto:'', extraPhotos:[], heightCm:'', weightKg:'', bodyTypes:[], eyeColor:'', hairColor:'', hairstyles:[], hairstyleNote:'', beardTypes:[], specialFeatures:[], specialFeaturesNote:'', gaitTypes:[], presenceTypes:[], groupTypes:[], recognitionLevel:'', behaviorAssessments:[], identityNotes:'', created: Date.now()
+          givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', mainPhoto:'', extraPhotos:[], heightCm:'', weightKg:'', bodyTypes:[], eyeColor:'', hairColor:'', hairstyles:[], hairstyleNote:'', beardTypes:[], specialFeatures:[], specialFeaturesNote:'', gaitTypes:[], presenceTypes:[], groupTypes:[], recognitionLevel:'', behaviorAssessments:[], identityNotes:'', remarks: [], hints: [], created: Date.now()
         };
       }
     }
@@ -839,9 +988,9 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['stammdaten','sozial','umfeld','identitaetsprofil','vorgaenge'].forEach(key=>{
+    ['stammdaten','sozial','umfeld','identitaetsprofil','vermerke','hinweise','vorgaenge'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
-      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[key];
+      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen', vermerke:'Vermerke', hinweise:'Hinweise'}[key];
       tab.addEventListener('click', ()=>{ this._savePersonEditDraft(); this.current.tab = key; this.render(); });
       tabs.appendChild(tab);
     });
@@ -850,7 +999,7 @@ class App {
     const form = document.createElement('form'); form.className='card';
     form.innerHTML = `
       <h3>${isEdit ? 'Person bearbeiten' : 'Neue Person erstellen'}</h3>
-      <div class="section">
+      <div class="section edit-section" data-section="stammdaten">
         <h4>Grundlegende Informationen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Vorname *</label><input name="givenName" type="text" value="${escapeHtml(p.givenName)}" required></div>
@@ -862,7 +1011,7 @@ class App {
           <div class="field"><label>Interne ID</label><input name="internalId" type="text" value="${escapeHtml(p.internalId || '')}" placeholder="Automatisch generiert"></div>
         </div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="stammdaten">
         <h4>Kontakt- und Wohninformationen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Straße</label><input name="street" type="text" value="${escapeHtml(p.street)}"></div>
@@ -873,7 +1022,7 @@ class App {
           <div class="field"><label>E-Mail</label><input name="email" type="email" value="${escapeHtml(p.email)}"></div>
         </div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="stammdaten">
         <h4>Gesundheitliche Informationen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Krankenkasse</label><select name="insurance"><option value="" ${p.insurance === '' ? 'selected' : ''}>—</option>${OPTIONS.insurance.map(option => `<option value="${option}" ${p.insurance===option ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
@@ -883,7 +1032,7 @@ class App {
         <div class="field-block"><label>Allergieinformationen</label><textarea name="allergyInfo" placeholder="Details zu Allergien...">${escapeHtml(p.allergyInfo)}</textarea></div>
         <div class="field-block"><label>Besondere Hinweise</label><textarea name="specialNotes" placeholder="Besondere gesundheitliche Hinweise...">${escapeHtml(p.specialNotes)}</textarea></div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="sozial">
         <h4>Soziales</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Spitzname / Bekannt als</label><input name="nickname" type="text" value="${escapeHtml(p.nickname)}"></div>
@@ -891,7 +1040,7 @@ class App {
           <div class="field"><label>Freunde / Bezugspersonen</label><select name="friends" multiple size="4">${otherPersons.map(person=>`<option value="${person.id}" ${(p.friends||[]).includes(person.id) ? 'selected' : ''}>${escapeHtml(person.givenName)} ${escapeHtml(person.familyName)}</option>`).join('')}</select></div>
         </div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="sozial">
         <h4>Verhalten</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Mitarbeit</label><input name="cooperation" type="number" min="0" max="10" value="${escapeHtml(String(p.cooperation || 0))}"></div>
@@ -904,7 +1053,7 @@ class App {
         </div>
         <div class="field-block"><label>Zusätzliche Hinweise</label><textarea name="extraNotes" placeholder="Zusätzliche Hinweise...">${escapeHtml(p.extraNotes)}</textarea></div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="identitaetsprofil">
         <h4>Identitätsprofil</h4>
         <div class="field-block">
           <label>Hauptfoto</label>
@@ -935,7 +1084,7 @@ class App {
           <div class="field"><label>Freie Notizen</label><textarea name="identityNotes" placeholder="Freie Notizen...">${escapeHtml(p.identityNotes)}</textarea></div>
         </div>
       </div>
-      <div class="section">
+      <div class="section edit-section" data-section="umfeld">
         <h4>Umfeld & Bezugspersonen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Name Mutter</label><input name="motherName" type="text" value="${escapeHtml(p.motherName)}"></div>
@@ -953,38 +1102,78 @@ class App {
         </div>
         <div class="field-block"><label>Zusätzliche Hinweise</label><textarea name="environmentNotes" placeholder="Zusätzliche Hinweise...">${escapeHtml(p.environmentNotes)}</textarea></div>
       </div>
+      <div class="section edit-section" data-section="vermerke">
+        <h4>Vermerke</h4>
+          <div class="field-block"><label>Vermerke</label></div>
+          <div class="note-list">${(p.remarks || []).length ? (p.remarks || []).map(note => `
+            <div class="note-entry note-entry--remark">
+              <div class="note-header">
+                <div class="note-title"><strong>Vermerk</strong><div class="note-meta">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+                ${this.current.mode==='edit' ? `<div class="note-actions"><button class="btn" type="button" data-edit-person-remark="${note.id}">Bearbeiten</button><button class="btn" type="button" data-delete-person-remark="${note.id}">Löschen</button></div>` : ''}
+              </div>
+              <div class="notes-box">${escapeHtml(note.text)}</div>
+            </div>
+          `).join('') : '<div class="notes-box">Keine Vermerke vorhanden</div>'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
+          <button class="btn primary" type="button" id="addPersonRemarkButton">+ Neuer Vermerk</button>
+        </div>
+        <div id="personRemarkCreateArea"></div>
+      </div>
+      <div class="section edit-section" data-section="hinweise">
+        <h4>Hinweise</h4>
+        <div class="field-block"><label>Hinweise</label></div>
+        <div class="note-list">${(p.hints || []).length ? (p.hints || []).map(hint => `
+            <div class="note-entry ${hint.priority === 'Hoch' ? 'note-entry--high' : hint.priority === 'Mittel' ? 'note-entry--medium' : 'note-entry--low'}">
+              <div class="note-header">
+                <div class="note-title"><strong>${escapeHtml(hint.subject || 'Kein Betreff')}</strong><div class="note-meta">${escapeHtml(formatDateTimeBerlin(hint.created))} • ${escapeHtml(hint.priority || '—')}</div></div>
+                ${this.current.mode==='edit' ? `<div class="note-actions"><button class="btn" type="button" data-edit-person-hint="${hint.id}">Bearbeiten</button><button class="btn" type="button" data-delete-person-hint="${hint.id}">Löschen</button></div>` : ''}
+              </div>
+              <div class="notes-box">${escapeHtml(hint.text)}</div>
+            </div>
+          `).join('') : '<div class="notes-box">Keine Hinweise vorhanden</div>'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
+          <button class="btn primary" type="button" id="addPersonHintButton">+ Hinweis hinzufügen</button>
+        </div>
+        <div id="personHintCreateArea"></div>
+      </div>
       <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)">
         <button class="btn primary" type="submit">Speichern</button>
         <button class="btn" type="button" id="cancel2">Abbrechen</button>
+        ${isEdit ? '<button class="btn danger" type="button" id="deletePersonButton">Akte löschen</button>' : ''}
       </div>
     `;
 
-    form.querySelectorAll('.section').forEach((section,index)=>{
-      const mapping = ['stammdaten','stammdaten','stammdaten','sozial','sozial','identitaetsprofil','umfeld'];
-      section.dataset.section = mapping[index] || 'stammdaten';
-      section.style.display = section.dataset.section === this.current.tab ? '' : 'none';
+    form.querySelectorAll('.edit-section').forEach(section => {
+      const isVisible = section.dataset.section === this.current.tab;
+      section.style.display = isVisible ? 'block' : 'none';
+      section.classList.toggle('active', isVisible);
     });
 
-    if(this.current.tab === 'vorgaenge'){
-      const cases = this.storage.data.cases.filter(c => getCasePersonRoles(c, p.id).length > 0);
-      const caseRows = cases.length ? cases.map(c => {
-        const roles = getCasePersonRoles(c, p.id).map(createRoleTag).join(' ');
-        return `<div class="item"><div><strong>${escapeHtml(c.title)}</strong><div class="muted">${escapeHtml(c.caseNumber || c.id)} • ${escapeHtml(c.category)} • ${escapeHtml(formatDateTimeEU(c.date, c.time))}</div><div style="margin-top:8px">${roles}</div></div><button class="btn" data-open-case="${c.id}">Öffnen</button></div>`;
-      }).join('') : '<div class="muted">Keine Vorgänge gefunden</div>';
-      const overview = document.createElement('div'); overview.className='card';
-      overview.innerHTML = `
-        <h3>Vorgänge</h3>
-        <div class="section">${caseRows}</div>
-        <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)"><button class="btn" type="button" id="cancel2">Abbrechen</button></div>
-      `;
-      this.view.appendChild(overview);
-      overview.querySelector('#cancel2').addEventListener('click', ()=>{ this.current.mode='view'; this.render(); });
-      overview.querySelectorAll('[data-open-case]').forEach(btn => btn.addEventListener('click', e => {
-        const caseId = btn.dataset.openCase;
-        this.current = {type:'case', id:caseId, mode:'view', tab:'overview'};
-        this.render();
-      }));
-      return;
+    // Delete button in edit mode (show confirmation modal)
+    const deleteBtn = form.querySelector('#deletePersonButton');
+    if(deleteBtn){
+      deleteBtn.addEventListener('click', ()=>{
+        const confirmNode = document.createElement('div');
+        confirmNode.innerHTML = `
+          <h3>Personakte wirklich löschen?</h3>
+          <p>Diese Aktion kann nicht rückgängig gemacht werden. Zum Bestätigen geben Sie bitte <strong>"LÖSCHEN"</strong> ein.</p>
+          <div style="margin-top:12px"><input id="modalConfirmText" placeholder="LÖSCHEN eingeben" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+            <button class="btn" id="modalCancel">Abbrechen</button>
+            <button class="btn danger" id="modalConfirm" disabled>Löschen</button>
+          </div>
+        `;
+        this.openModal(confirmNode);
+        const txt = confirmNode.querySelector('#modalConfirmText');
+        const btn = confirmNode.querySelector('#modalConfirm');
+        confirmNode.querySelector('#modalCancel').addEventListener('click', ()=>{ this.closeModal(); });
+        // enable confirm only when the user typed 'löschen' (case-insensitive)
+        txt?.addEventListener('input', ()=>{
+          const v = (txt.value || '').trim().toLowerCase();
+          btn.disabled = v !== 'löschen';
+        });
+        btn.addEventListener('click', ()=>{ this.closeModal(); this.storage.deletePerson(personId); this.renderPersonList(); });
+      });
     }
 
     let currentMainPhoto = p.mainPhoto || '';
@@ -1086,6 +1275,127 @@ class App {
 
     this._attachPersonEditDraftListeners(form);
 
+    if(this.current.tab === 'vermerke'){
+      const remarkArea = form.querySelector('#personRemarkCreateArea');
+      const addRemarkButton = form.querySelector('#addPersonRemarkButton');
+      const openRemarkForm = (remark = null) => {
+        if(!remarkArea) return;
+        remarkArea.innerHTML = `
+          <div class="section note-input-section">
+            <div class="field-block"><label>${remark ? 'Vermerk bearbeiten' : 'Neuer Vermerk'}</label><textarea id="newPersonRemarkText" placeholder="Vermerk eingeben...">${escapeHtml(remark?.text || '')}</textarea></div>
+            <div class="note-actions-row">
+              <button class="btn" type="button" id="cancelPersonRemark">Abbrechen</button>
+              <button class="btn primary" type="button" id="savePersonRemark">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveBtn = remarkArea.querySelector('#savePersonRemark');
+        const cancelBtn = remarkArea.querySelector('#cancelPersonRemark');
+        saveBtn?.addEventListener('click', ()=>{
+          const text = (remarkArea.querySelector('#newPersonRemarkText')?.value || '').trim();
+          if(!text) return;
+          if(!this.current.editData) this.current.editData = {};
+          this.current.editData.remarks = Array.isArray(this.current.editData.remarks) ? [...this.current.editData.remarks] : [];
+          if(remark?.id){
+            this.current.editData.remarks = this.current.editData.remarks.map(item => item.id === remark.id ? { ...item, text } : item);
+          } else {
+            this.current.editData.remarks.push({ id: genId('n-'), text, created: Date.now() });
+          }
+          this.renderPersonEdit(personId);
+        });
+        cancelBtn?.addEventListener('click', ()=>{ remarkArea.innerHTML = ''; });
+      };
+      addRemarkButton?.addEventListener('click', ()=> openRemarkForm());
+      form.querySelectorAll('[data-edit-person-remark]').forEach(button => {
+        button.addEventListener('click', ()=>{
+          const remarkId = button.dataset.editPersonRemark;
+          const remark = (this.current.editData?.remarks || []).find(note => note.id === remarkId) || null;
+          openRemarkForm(remark);
+        });
+      });
+      form.querySelectorAll('[data-delete-person-remark]').forEach(button => {
+        button.addEventListener('click', ()=>{
+          const remarkId = button.dataset.deletePersonRemark;
+          if(!this.current.editData) return;
+          this.current.editData.remarks = (this.current.editData.remarks || []).filter(note => note.id !== remarkId);
+          this.renderPersonEdit(personId);
+        });
+      });
+    }
+
+    if(this.current.tab === 'hinweise'){
+      const hintArea = form.querySelector('#personHintCreateArea');
+      const addHintButton = form.querySelector('#addPersonHintButton');
+      const openHintForm = (hint = null) => {
+        if(!hintArea) return;
+        hintArea.innerHTML = `
+          <div class="section note-input-section">
+            <div class="field-grid three-cols">
+              <div class="field"><label>Betreff</label><input id="newPersonHintSubject" type="text" placeholder="Betreff eingeben" value="${escapeHtml(hint?.subject || '')}"></div>
+              <div class="field"><label>Priorität</label><select id="newPersonHintPriority">${OPTIONS.hintPriorities.map(option => `<option value="${option}" ${hint?.priority===option ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
+              <div class="field" id="newPersonHintShowOnCardWrap" style="${hint?.priority === 'Hoch' ? 'display:none' : ''}"><label>Auf Karte anzeigen</label><div><input id="newPersonHintShowOnCard" type="checkbox" ${hint?.showOnCard ? 'checked' : ''}></div></div>
+            </div>
+            <div class="field-block"><label>Inhalt</label><textarea id="newPersonHintText" placeholder="Hinweistext..." rows="4">${escapeHtml(hint?.text || '')}</textarea></div>
+            <div class="note-actions-row">
+              <button class="btn" type="button" id="cancelPersonHint">Abbrechen</button>
+              <button class="btn primary" type="button" id="savePersonHint">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveHintBtn = hintArea.querySelector('#savePersonHint');
+        const cancelHintBtn = hintArea.querySelector('#cancelPersonHint');
+        // show/hide the showOnCard checkbox depending on priority
+        const prioritySelect = hintArea.querySelector('#newPersonHintPriority');
+        const showWrap = hintArea.querySelector('#newPersonHintShowOnCardWrap');
+        if(prioritySelect && showWrap){
+          showWrap.style.display = prioritySelect.value === 'Hoch' ? 'none' : '';
+          if(prioritySelect.value === 'Hoch'){
+            const cb = hintArea.querySelector('#newPersonHintShowOnCard'); if(cb) cb.checked = true;
+          }
+        }
+        prioritySelect?.addEventListener('change', ()=>{
+          if(!showWrap) return;
+          showWrap.style.display = prioritySelect.value === 'Hoch' ? 'none' : '';
+          if(prioritySelect.value === 'Hoch'){
+            const cb = hintArea.querySelector('#newPersonHintShowOnCard'); if(cb) cb.checked = true;
+          }
+        });
+
+        saveHintBtn?.addEventListener('click', ()=>{
+          const subject = (hintArea.querySelector('#newPersonHintSubject')?.value || '').trim();
+          const text = (hintArea.querySelector('#newPersonHintText')?.value || '').trim();
+          const priority = hintArea.querySelector('#newPersonHintPriority')?.value || 'Mittel';
+          const showOnCard = priority === 'Hoch' ? true : !!hintArea.querySelector('#newPersonHintShowOnCard')?.checked;
+          if(!text && !subject) return;
+          if(!this.current.editData) this.current.editData = {};
+          this.current.editData.hints = Array.isArray(this.current.editData.hints) ? [...this.current.editData.hints] : [];
+          if(hint?.id){
+            this.current.editData.hints = this.current.editData.hints.map(item => item.id === hint.id ? { ...item, subject, text, priority, showOnCard } : item);
+          } else {
+            this.current.editData.hints.push({ id: genId('h-'), subject, text, priority, created: Date.now(), showOnCard });
+          }
+          this.renderPersonEdit(personId);
+        });
+        cancelHintBtn?.addEventListener('click', ()=>{ hintArea.innerHTML = ''; });
+      };
+      addHintButton?.addEventListener('click', ()=> openHintForm());
+      form.querySelectorAll('[data-edit-person-hint]').forEach(button => {
+        button.addEventListener('click', ()=>{
+          const hintId = button.dataset.editPersonHint;
+          const hint = (this.current.editData?.hints || []).find(item => item.id === hintId) || null;
+          openHintForm(hint);
+        });
+      });
+      form.querySelectorAll('[data-delete-person-hint]').forEach(button => {
+        button.addEventListener('click', ()=>{
+          const hintId = button.dataset.deletePersonHint;
+          if(!this.current.editData) return;
+          this.current.editData.hints = (this.current.editData.hints || []).filter(hint => hint.id !== hintId);
+          this.renderPersonEdit(personId);
+        });
+      });
+    }
+
     form.addEventListener('submit', e=>{ 
       e.preventDefault(); 
       const fd=new FormData(form); 
@@ -1131,6 +1441,8 @@ class App {
         specialAttention: fd.get('specialAttention'),
         strengths: fd.getAll('strengths'),
         environmentNotes: fd.get('environmentNotes'),
+        remarks: (this.current.editData && Array.isArray(this.current.editData.remarks)) ? [...this.current.editData.remarks] : [],
+        hints: (this.current.editData && Array.isArray(this.current.editData.hints)) ? [...this.current.editData.hints] : [],
         mainPhoto: currentMainPhoto,
         extraPhotos: currentExtraPhotos,
         heightCm: fd.get('heightCm'),
@@ -1672,4 +1984,4 @@ class App {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async ()=>{ OPTIONS = await loadOptionData(); window.app = new App(); });
+document.addEventListener('DOMContentLoaded', async ()=>{ OPTIONS = await loadOptionData(); window.app = new App(); window.app._initResponsiveControls && window.app._initResponsiveControls(); });
