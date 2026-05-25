@@ -150,7 +150,11 @@
         "verantwortungsbewusst",
         "verlässlich",
         "unauffällig",
-        "auffällig"
+        "auffällig",
+        "respektvoll",
+        "ordentlich",
+        "unordentlich",
+        "ungepflegt"
     ],
 
     "strengths": [
@@ -370,7 +374,12 @@
         "Dominant",
         "Unzuverlässig",
         "Aggressiv",
-        "Schwer einschätzbar"
+        "Schwer einschätzbar",
+        "Vorbildlich",
+        "Überwiegend positiv",
+        "Wechselhaft",
+        "Herausfordernd",
+        "Problematisch"
     ],
 
     "priorities": [
@@ -392,5 +401,66 @@
         "Dokumentation",
         "Beratung",
         "Kontrolle"
+    ],
+
+    "interests": [
+        "Medizin",
+        "Polizei",
+        "Feuerwehr",
+        "Rettungsdienst",
+        "Technik",
+        "IT",
+        "Programmierung",
+        "Gaming",
+        "Musik",
+        "Kunst",
+        "Sport",
+        "Fitness",
+        "Natur",
+        "Tiere",
+        "Autos",
+        "Motorräder",
+        "Geschichte",
+        "Politik",
+        "Wirtschaft",
+        "Recht",
+        "Psychologie",
+        "Astronomie",
+        "Film",
+        "Serien",
+        "Fotografie",
+        "Kochen",
+        "Reisen",
+        "Soziale Medien",
+        "Sonstiges"
+    ],
+
+    "hobbies": [
+        "Fußball",
+        "Handball",
+        "Basketball",
+        "Volleyball",
+        "Tennis",
+        "Schwimmen",
+        "Leichtathletik",
+        "Kampfsport",
+        "Fitness",
+        "Radfahren",
+        "Gaming",
+        "Programmieren",
+        "Lesen",
+        "Schreiben",
+        "Zeichnen",
+        "Malen",
+        "Fotografie",
+        "Musizieren",
+        "Singen",
+        "Kochen",
+        "Backen",
+        "Angeln",
+        "Modellbau",
+        "Sammeln",
+        "Ehrenamt",
+        "Sonstiges"
     ]
 }
