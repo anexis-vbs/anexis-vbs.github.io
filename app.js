@@ -416,7 +416,10 @@ class App {
   }
 
   render(){
-    if(this.current.type === 'person' && this.current.id) return this.renderPersonDetail(this.current.id);
+    if(this.current.type === 'person'){
+      if(this.current.mode === 'edit' || this.current.mode === 'new') return this.renderPersonEdit(this.current.id);
+      if(this.current.id) return this.renderPersonDetail(this.current.id);
+    }
     if(this.current.type === 'case' && this.current.id) return this.renderCaseDetail(this.current.id);
 
     switch(this.route){
@@ -464,7 +467,7 @@ class App {
     const people = this.storage.data.persons.filter(p=>{ 
       if(!filter) return true; 
       const q = filter.toLowerCase(); 
-      return `${p.givenName} ${p.familyName}`.toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q); 
+      return `${p.givenName} ${p.familyName}`.toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q) || (Array.isArray(p.remarks) ? p.remarks.some(note=>note.text.toLowerCase().includes(q)) : false);
     });
     
     this.view.innerHTML = '';
@@ -522,10 +525,10 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['stammdaten', 'sozial', 'umfeld', 'identitaetsprofil','vorgaenge'].forEach(t=>{
+    ['stammdaten', 'sozial', 'umfeld', 'identitaetsprofil','vermerke','vorgaenge'].forEach(t=>{
       const tab = document.createElement('div');
       tab.className='tab ' + (t === this.current.tab ? 'active' : '');
-      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[t];
+      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vermerke:'Vermerke', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[t];
       tab.addEventListener('click', ()=>{ this.current.tab=t; this.render(); });
       tabs.appendChild(tab);
     });
@@ -630,6 +633,54 @@ class App {
           this.render();
         });
       });
+    } else if(this.current.tab==='vermerke'){
+      const remarks = Array.isArray(p.remarks) ? p.remarks : [];
+      const remarksHtml = remarks.length ? remarks.map(note => `
+        <div class="section note-entry">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
+            <div><strong>Vermerk</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+          </div>
+          <div class="notes-box">${escapeHtml(note.text)}</div>
+        </div>
+      `).join('') : '<div class="section"><div class="notes-box">Keine Vermerke vorhanden</div></div>';
+      content.innerHTML = `
+        <div class="section" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div><h4>Vermerke</h4></div>
+          <button class="btn primary" type="button" id="addPersonRemarkButton">+ Neuer Vermerk</button>
+        </div>
+        <div id="personRemarkCreateArea"></div>
+        ${remarksHtml}
+      `;
+      this.view.appendChild(content);
+
+      const noteArea = content.querySelector('#personRemarkCreateArea');
+      const addRemarkButton = content.querySelector('#addPersonRemarkButton');
+      const renderRemarkForm = () => {
+        if(!noteArea) return;
+        noteArea.innerHTML = `
+          <div class="section">
+            <div class="field-block"><label>Neuer Vermerk</label><textarea id="newPersonRemarkText" placeholder="Vermerk eingeben..."></textarea></div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px;">
+              <button class="btn" type="button" id="cancelPersonRemark">Abbrechen</button>
+              <button class="btn primary" type="button" id="savePersonRemark">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveBtn = noteArea.querySelector('#savePersonRemark');
+        const cancelBtn = noteArea.querySelector('#cancelPersonRemark');
+        saveBtn.addEventListener('click', ()=>{
+          const text = (noteArea.querySelector('#newPersonRemarkText')?.value || '').trim();
+          if(!text) return;
+          const notes = Array.isArray(p.remarks) ? [...p.remarks] : [];
+          notes.push({ id: genId('n-'), text, created: Date.now() });
+          this.storage.updatePerson(p.id, { remarks: notes });
+          this.current = { type:'person', id:p.id, mode:'view', tab:'vermerke' };
+          this.render();
+        });
+        cancelBtn.addEventListener('click', ()=>{ if(noteArea) noteArea.innerHTML = ''; });
+      };
+      if(addRemarkButton) addRemarkButton.addEventListener('click', renderRemarkForm);
+      return;
     } else if(this.current.tab==='vorgaenge'){
       const cases = this.storage.data.cases.filter(c => getCasePersonRoles(c, p.id).length > 0);
       content.innerHTML = `
@@ -821,7 +872,7 @@ class App {
       }
       if(!this.current.editData){
         this.current.editData = {
-          givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', mainPhoto:'', extraPhotos:[], heightCm:'', weightKg:'', bodyTypes:[], eyeColor:'', hairColor:'', hairstyles:[], hairstyleNote:'', beardTypes:[], specialFeatures:[], specialFeaturesNote:'', gaitTypes:[], presenceTypes:[], groupTypes:[], recognitionLevel:'', behaviorAssessments:[], identityNotes:'', created: Date.now()
+          givenName:'', familyName:'', gender:'Keine Angabe', birthDate:'', birthplace:'', tags:[], notes:'', city:'', street:'', postalCode:'', mobile:'', phone:'', email:'', insurance:'Keine Angabe', customInsurance:'', hasAllergies:false, allergyInfo:'', specialNotes:'', nickname:'', socialRoles:[], friends:[], cooperation:0, reliability:0, socialBehavior:0, conflictPotential:0, auffaelligkeiten:[], conflicts:[], commStyles:[], extraNotes:'', motherName:'', motherPhone:'', fatherName:'', fatherPhone:'', parentContactPossible:'Ja', friendCircle:[], hobbies:[], interests:[], socialNetworks:[], appearance:[], specialAttention:'Nein', strengths:[], environmentNotes:'', internalId:'', city:'', street:'', postalCode:'', mainPhoto:'', extraPhotos:[], heightCm:'', weightKg:'', bodyTypes:[], eyeColor:'', hairColor:'', hairstyles:[], hairstyleNote:'', beardTypes:[], specialFeatures:[], specialFeaturesNote:'', gaitTypes:[], presenceTypes:[], groupTypes:[], recognitionLevel:'', behaviorAssessments:[], identityNotes:'', remarks: [], created: Date.now()
         };
       }
     }
@@ -839,9 +890,9 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['stammdaten','sozial','umfeld','identitaetsprofil','vorgaenge'].forEach(key=>{
+    ['stammdaten','sozial','umfeld','identitaetsprofil','vermerke','vorgaenge'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
-      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen'}[key];
+      tab.textContent = {stammdaten:'Stammdaten', identitaetsprofil:'Identitätsprofil', vorgaenge:'Vorgänge', sozial:'Soziales & Verhalten', umfeld:'Umfeld & Bezugspersonen', vermerke:'Vermerke'}[key];
       tab.addEventListener('click', ()=>{ this._savePersonEditDraft(); this.current.tab = key; this.render(); });
       tabs.appendChild(tab);
     });
@@ -953,6 +1004,23 @@ class App {
         </div>
         <div class="field-block"><label>Zusätzliche Hinweise</label><textarea name="environmentNotes" placeholder="Zusätzliche Hinweise...">${escapeHtml(p.environmentNotes)}</textarea></div>
       </div>
+      <div class="section">
+        <h4>Vermerke</h4>
+        <div class="section">
+          <div class="field-block"><label>Vermerke</label><div class="notes-box">${(p.remarks || []).length ? (p.remarks || []).map(note => `
+            <div class="note-entry" style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;">
+                <div><strong>Vermerk</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+                ${this.current.mode==='edit' ? `<button class="btn" type="button" data-delete-person-remark="${note.id}">Löschen</button>` : ''}
+              </div>
+              <div class="notes-box">${escapeHtml(note.text)}</div>
+            </div>
+          `).join('') : '<div class="notes-box">Keine Vermerke vorhanden</div>'}</div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;">
+          <button class="btn primary" type="button" id="addPersonRemarkButton">+ Neuer Vermerk</button>
+        </div>
+        <div id="personRemarkCreateArea"></div>
+      </div>
       <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)">
         <button class="btn primary" type="submit">Speichern</button>
         <button class="btn" type="button" id="cancel2">Abbrechen</button>
@@ -960,12 +1028,81 @@ class App {
     `;
 
     form.querySelectorAll('.section').forEach((section,index)=>{
-      const mapping = ['stammdaten','stammdaten','stammdaten','sozial','sozial','identitaetsprofil','umfeld'];
+      const mapping = ['stammdaten','stammdaten','stammdaten','sozial','sozial','identitaetsprofil','umfeld','vermerke'];
       section.dataset.section = mapping[index] || 'stammdaten';
       section.style.display = section.dataset.section === this.current.tab ? '' : 'none';
     });
 
     if(this.current.tab === 'vorgaenge'){
+      const cases = this.storage.data.cases.filter(c => getCasePersonRoles(c, p.id).length > 0);
+      const caseRows = cases.length ? cases.map(c => {
+        const roles = getCasePersonRoles(c, p.id).map(createRoleTag).join(' ');
+        return `<div class="item"><div><strong>${escapeHtml(c.title)}</strong><div class="muted">${escapeHtml(c.caseNumber || c.id)} • ${escapeHtml(c.category)} • ${escapeHtml(formatDateTimeEU(c.date, c.time))}</div><div style="margin-top:8px">${roles}</div></div><button class="btn" data-open-case="${c.id}">Öffnen</button></div>`;
+      }).join('') : '<div class="muted">Keine Vorgänge gefunden</div>';
+      const overview = document.createElement('div'); overview.className='card';
+      overview.innerHTML = `
+        <h3>Vorgänge</h3>
+        <div class="section">${caseRows}</div>
+        <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)"><button class="btn" type="button" id="cancel2">Abbrechen</button></div>
+      `;
+      this.view.appendChild(overview);
+      overview.querySelector('#cancel2').addEventListener('click', ()=>{ this.current.mode='view'; this.render(); });
+      overview.querySelectorAll('[data-open-case]').forEach(btn => btn.addEventListener('click', e => {
+        const caseId = btn.dataset.openCase;
+        this.current = {type:'case', id:caseId, mode:'view', tab:'overview'};
+        this.render();
+      }));
+      return;
+    } else if(this.current.tab === 'vermerke'){
+      const remarks = Array.isArray(p.remarks) ? p.remarks : [];
+      const remarksHtml = remarks.length ? remarks.map(note => `
+        <div class="section note-entry">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
+            <div><strong>Vermerk</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+          </div>
+          <div class="notes-box">${escapeHtml(note.text)}</div>
+        </div>
+      `).join('') : '<div class="section"><div class="notes-box">Keine Vermerke vorhanden</div></div>';
+      content.innerHTML = `
+        <div class="section" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div><h4>Vermerke</h4></div>
+          <button class="btn primary" type="button" id="addPersonRemarkButton">+ Neuer Vermerk</button>
+        </div>
+        <div id="personRemarkCreateArea"></div>
+        ${remarksHtml}
+      `;
+      this.view.appendChild(content);
+
+      const noteArea = content.querySelector('#personRemarkCreateArea');
+      const addRemarkButton = content.querySelector('#addPersonRemarkButton');
+      const renderRemarkForm = () => {
+        if(!noteArea) return;
+        noteArea.innerHTML = `
+          <div class="section">
+            <div class="field-block"><label>Neuer Vermerk</label><textarea id="newPersonRemarkText" placeholder="Vermerk eingeben..."></textarea></div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px;">
+              <button class="btn" type="button" id="cancelPersonRemark">Abbrechen</button>
+              <button class="btn primary" type="button" id="savePersonRemark">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveBtn = noteArea.querySelector('#savePersonRemark');
+        const cancelBtn = noteArea.querySelector('#cancelPersonRemark');
+        saveBtn.addEventListener('click', ()=>{
+          const text = (noteArea.querySelector('#newPersonRemarkText')?.value || '').trim();
+          if(!text) return;
+          const notes = Array.isArray(p.remarks) ? [...p.remarks] : [];
+          notes.push({ id: genId('n-'), text, created: Date.now() });
+          this.storage.updatePerson(p.id, { remarks: notes });
+          this.current = { type:'person', id:p.id, mode:'view', tab:'vermerke' };
+          this.render();
+        });
+        cancelBtn.addEventListener('click', ()=>{ if(noteArea) noteArea.innerHTML = ''; });
+      };
+
+      if(addRemarkButton) addRemarkButton.addEventListener('click', renderRemarkForm);
+      return;
+    } else if(this.current.tab === 'vorgaenge'){
       const cases = this.storage.data.cases.filter(c => getCasePersonRoles(c, p.id).length > 0);
       const caseRows = cases.length ? cases.map(c => {
         const roles = getCasePersonRoles(c, p.id).map(createRoleTag).join(' ');
@@ -1086,6 +1223,44 @@ class App {
 
     this._attachPersonEditDraftListeners(form);
 
+    if(this.current.tab === 'vermerke'){
+      const remarkArea = form.querySelector('#personRemarkCreateArea');
+      const addRemarkButton = form.querySelector('#addPersonRemarkButton');
+      if(addRemarkButton){
+        addRemarkButton.addEventListener('click', ()=>{
+          if(!remarkArea) return;
+          remarkArea.innerHTML = `
+            <div class="section">
+              <div class="field-block"><label>Neuer Vermerk</label><textarea id="newPersonRemarkText" placeholder="Vermerk eingeben..."></textarea></div>
+              <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px;">
+                <button class="btn" type="button" id="cancelPersonRemark">Abbrechen</button>
+                <button class="btn primary" type="button" id="savePersonRemark">Speichern</button>
+              </div>
+            </div>
+          `;
+          const saveBtn = remarkArea.querySelector('#savePersonRemark');
+          const cancelBtn = remarkArea.querySelector('#cancelPersonRemark');
+          saveBtn.addEventListener('click', ()=>{
+            const text = (remarkArea.querySelector('#newPersonRemarkText')?.value || '').trim();
+            if(!text) return;
+            if(!this.current.editData) this.current.editData = {};
+            this.current.editData.remarks = Array.isArray(this.current.editData.remarks) ? [...this.current.editData.remarks] : [];
+            this.current.editData.remarks.push({ id: genId('n-'), text, created: Date.now() });
+            this.renderPersonEdit(personId);
+          });
+          cancelBtn.addEventListener('click', ()=>{ if(remarkArea) remarkArea.innerHTML = ''; });
+        });
+      }
+      form.querySelectorAll('[data-delete-person-remark]').forEach(button => {
+        button.addEventListener('click', ()=>{
+          const remarkId = button.dataset.deletePersonRemark;
+          if(!this.current.editData) return;
+          this.current.editData.remarks = (this.current.editData.remarks || []).filter(note => note.id !== remarkId);
+          this.renderPersonEdit(personId);
+        });
+      });
+    }
+
     form.addEventListener('submit', e=>{ 
       e.preventDefault(); 
       const fd=new FormData(form); 
@@ -1131,6 +1306,7 @@ class App {
         specialAttention: fd.get('specialAttention'),
         strengths: fd.getAll('strengths'),
         environmentNotes: fd.get('environmentNotes'),
+        remarks: (this.current.editData && Array.isArray(this.current.editData.remarks)) ? [...this.current.editData.remarks] : [],
         mainPhoto: currentMainPhoto,
         extraPhotos: currentExtraPhotos,
         heightCm: fd.get('heightCm'),

@@ -86,6 +86,7 @@ function normalizePerson(person){
     recognitionLevel: '',
     behaviorAssessments: [],
     identityNotes: '',
+    remarks: [],
     created: person.created || Date.now()
   }, person);
 
@@ -113,6 +114,7 @@ function normalizePerson(person){
   normalized.beardTypes = Array.isArray(normalized.beardTypes) ? normalized.beardTypes : [];
   normalized.specialFeatures = Array.isArray(normalized.specialFeatures) ? normalized.specialFeatures : [];
   normalized.specialFeaturesNote = normalized.specialFeaturesNote || '';
+  normalized.remarks = Array.isArray(normalized.remarks) ? normalized.remarks : [];
   normalized.gaitTypes = Array.isArray(normalized.gaitTypes) ? normalized.gaitTypes : [];
   normalized.presenceTypes = Array.isArray(normalized.presenceTypes) ? normalized.presenceTypes : [];
   normalized.groupTypes = Array.isArray(normalized.groupTypes) ? normalized.groupTypes : [];
