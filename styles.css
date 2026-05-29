@@ -720,33 +720,33 @@ select[multiple] option:checked {
 .role-tag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.5;
   letter-spacing: 0.01em;
   margin-right: 6px;
   margin-bottom: 6px;
 }
 
 .role-victim {
-  background: rgba(251, 113, 133, 0.18);
-  color: #fda4af;
-  border: 1px solid rgba(251,113,133,0.25);
-}
-
-.role-suspect {
   background: rgba(251, 191, 36, 0.16);
   color: #fbbf24;
   border: 1px solid rgba(251,191,36,0.25);
 }
 
+.role-suspect {
+  background: rgba(251, 113, 134, 0.281);
+  color: #ee7180;
+  border: 1px solid rgb(145, 0, 22);
+}
+
 .role-witness {
-  background: rgba(96, 165, 250, 0.16);
-  color: #93c5fd;
-  border: 1px solid rgba(96,165,250,0.25);
+  background: rgba(168, 96, 250, 0.16);
+  color: #c193fd;
+  border: 1px solid rgba(155, 96, 250, 0.25);
 }
 
 .role-reporter {
