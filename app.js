@@ -63,44 +63,20 @@ function createRoleTag(role){ const classes = { 'Geschädigter':'role-victim', '
 
 function calculateAge(birthDate){ if(!birthDate) return '—'; const date = new Date(birthDate); if(Number.isNaN(date.getTime())) return '—'; const today = new Date(); let age = today.getFullYear() - date.getFullYear(); const monthDiff = today.getMonth() - date.getMonth(); if(monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) age--; return age >= 0 ? age : '—'; }
 
-function createQRCodeCanvas(text, size = 140){
-  const modules = 21;
-  const cell = Math.floor(size / modules);
-  const actualSize = cell * modules;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = actualSize;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#0b1220';
-  ctx.fillRect(0, 0, actualSize, actualSize);
-
-  const seed = Array.from(new TextEncoder().encode(text || '')).reduce((acc, byte) => ((acc * 1315423911) ^ byte) >>> 0, 0x811c9dc5);
-  const rand = index => {
-    const value = Math.sin((seed + index) * 0.0001) * 10000;
-    return value - Math.floor(value);
-  };
-
-  const drawFinder = (x, y) => {
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(x * cell, y * cell, 3 * cell, 3 * cell);
-    ctx.fillStyle = '#0b1220';
-    ctx.fillRect((x + 1) * cell, (y + 1) * cell, cell, cell);
-  };
-
-  drawFinder(0, 0);
-  drawFinder(modules - 3, 0);
-  drawFinder(0, modules - 3);
-
-  for(let y = 0; y < modules; y++){
-    for(let x = 0; x < modules; x++){
-      if((x < 3 && y < 3) || (x > modules - 4 && y < 3) || (x < 3 && y > modules - 4)) continue;
-      if(rand(x * modules + y) > 0.55){
-        ctx.fillStyle = '#e5e7eb';
-        ctx.fillRect(x * cell, y * cell, cell, cell);
-      }
-    }
-  }
-
-  return canvas;
+function createQRCodeCanvas(text, size = 160){
+  const image = document.createElement('img');
+  const url = `${window.location.href.split('#')[0]}#person=${encodeURIComponent(text)}`;
+  image.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&format=png`;
+  image.alt = 'QR-Code für Personenakte';
+  image.width = size;
+  image.height = size;
+  image.style.maxWidth = '100%';
+  image.style.height = 'auto';
+  image.style.borderRadius = '18px';
+  image.style.boxShadow = '0 14px 30px rgba(0,0,0,0.14)';
+  image.style.background = 'var(--surface)';
+  image.style.padding = '6px';
+  return image;
 }
 
 class Storage {
@@ -294,6 +270,11 @@ class Storage {
       measureActions: [],
       measureDescription: '',
       description: '',
+      location: '',
+      responsibleUnit: '',
+      deadline: '',
+      nextStep: '',
+      processType: '',
       notes: [],
       history: [],
       created: Date.now()
@@ -336,6 +317,8 @@ class Storage {
   updatePerson(id, patch){ const p = this.data.persons.find(x=>x.id===id); if(p){ Object.assign(p, patch); this._normalizePerson(p); } this.save(); }
   deletePerson(id){ this.data.persons = this.data.persons.filter(x=>x.id!==id); this.data.cases.forEach(c=>{ c.participants = c.participants.filter(pid=>pid!==id); }); this.save(); }
   
+
+  
   addCase(c){ this.data.cases.push(this._normalizeCase(c)); this.save(); }
   updateCase(id, patch){ const c = this.data.cases.find(x=>x.id===id); if(c){ Object.assign(c,patch); this._normalizeCase(c); } this.save(); }
   deleteCase(id){ this.data.cases = this.data.cases.filter(x=>x.id===id); this.save(); }
@@ -359,6 +342,7 @@ class App {
 
     this.route = 'dashboard';
     this.current = { type: null, id: null, mode: 'view', tab: 'overview' };
+    this.personListState = this._loadPersonListPrefs();
 
     this._bindEvents();
     // close sidebar on nav click when on small screens
@@ -368,6 +352,7 @@ class App {
     window.addEventListener('resize', ()=>{ if(window.innerWidth > 900){ document.body.classList.remove('sidebar-open'); const bd = document.getElementById('sidebarBackdrop'); if(bd) bd.remove(); } });
     this.theme = this.loadTheme();
     this.applyTheme();
+    window.addEventListener('hashchange', ()=>{ if(this.storage){ this._applyDeepLink(); this.render(); } });
     // add sidebar toggle (hamburger) for small screens
     const topbarLeft = document.querySelector('.topbar-left');
     if(topbarLeft){
@@ -439,6 +424,7 @@ class App {
     } else {
       this.storage = new Storage(STORAGE_KEY);
     }
+    this._applyDeepLink();
     this.render();
   }
 
@@ -448,9 +434,40 @@ class App {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
+  _loadPersonListPrefs(){
+    try {
+      const raw = localStorage.getItem('anexis.personListPrefs');
+      const prefs = raw ? JSON.parse(raw) : {};
+      return {
+        sortBy: prefs.sortBy || 'created',
+        sortDirection: prefs.sortDirection || 'desc',
+        filters: Object.assign({ gender: '', minAge: '', maxAge: '', city: '' }, prefs.filters || {})
+      };
+    } catch(e) {
+      return { sortBy: 'created', sortDirection: 'desc', filters: { gender: '', minAge: '', maxAge: '', city: '' } };
+    }
+  }
+
+  _savePersonListPrefs(){
+    if(!this.personListState) return;
+    localStorage.setItem('anexis.personListPrefs', JSON.stringify(this.personListState));
+  }
+
   applyTheme(){
     document.body.dataset.theme = this.theme;
     if(this.themeSwitch) this.themeSwitch.checked = this.theme === 'light';
+  }
+
+  _applyDeepLink(){
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+    const personId = params.get('person');
+    if(personId && this.storage){
+      const exists = this.storage.data.persons.some(x=>x.id===personId);
+      if(exists){
+        this.current = { type:'person', id:personId, mode:'view', tab:'stammdaten' };
+      }
+    }
   }
 
   setTheme(theme){
@@ -475,23 +492,75 @@ class App {
   }
 
   renderDashboard(){
-    const persons = this.storage.data.persons.length;
-    const cases = this.storage.data.cases.length;
-    const tasksOpen = this.storage.data.tasks.filter(t=>t.status !== 'Erledigt').length;
-    
-    this.view.innerHTML = '';
-    const container = document.createElement('div'); container.className='grid';
-    
-    const cardStats = document.createElement('div'); cardStats.className='card l';
-    cardStats.innerHTML = `<h3>Dashboard</h3><div class="stats"><div class="stat"><strong>${persons}</strong><div>Personen</div></div><div class="stat"><strong>${cases}</strong><div>Vorgänge</div></div><div class="stat"><strong>${tasksOpen}</strong><div>offene Aufgaben</div></div></div>`;
+    const now = Date.now();
+    const persons = Array.isArray(this.storage.data.persons) ? this.storage.data.persons : [];
+    const cases = Array.isArray(this.storage.data.cases) ? this.storage.data.cases : [];
+    const tasks = Array.isArray(this.storage.data.tasks) ? this.storage.data.tasks : [];
+    const openCases = cases.filter(c => c.status !== 'Erledigt').length;
+    const urgentTasks = tasks.filter(t => {
+      if(t.status === 'Erledigt') return false;
+      if(!t.due) return true;
+      const due = new Date(t.due).getTime();
+      const days = (due - now) / (24*3600*1000);
+      return days <= 3;
+    }).length;
+    const newPersons7d = persons.filter(p => (now - (p.created || 0)) <= 7*24*3600*1000).length;
+    const deadlines3d = tasks.filter(t => {
+      if(!t.due) return false;
+      const due = new Date(t.due).getTime();
+      const days = (due - now) / (24*3600*1000);
+      return days >= 0 && days <= 3;
+    }).length;
 
-    const recent = document.createElement('div'); recent.className='card h'; recent.innerHTML = '<h3>Letzte Aktivitäten</h3>';
+    // status distribution for cases
+    const statusCounts = {};
+    cases.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
+    const totalCases = cases.length || 1;
+
+    this.view.innerHTML = '';
+    const container = document.createElement('div'); container.className = 'grid';
+
+    const cardTop = document.createElement('div'); cardTop.className = 'card l';
+    cardTop.innerHTML = `
+      <h3>Dashboard</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
+        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
+          <div style="font-size:28px;font-weight:800">${openCases}</div>
+          <div class="muted">Offene Fälle</div>
+        </div>
+        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
+          <div style="font-size:28px;font-weight:800">${urgentTasks}</div>
+          <div class="muted">Dringende Aufgaben (<=3 Tage)</div>
+        </div>
+        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
+          <div style="font-size:28px;font-weight:800">${newPersons7d}</div>
+          <div class="muted">Neue Personen (7 Tage)</div>
+        </div>
+        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
+          <div style="font-size:28px;font-weight:800">${deadlines3d}</div>
+          <div class="muted">Fristen (nächste 3 Tage)</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <h4 style="margin:0 0 8px 0">Statusverteilung der Fälle</h4>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${Object.keys(statusCounts).map(k=>{ const v = statusCounts[k]; const pct = Math.round((v/totalCases)*100); return `<div style="flex:1"><div class="muted" style="font-size:12px;margin-bottom:6px">${escapeHtml(k)} • ${v}</div><div style="height:8px;background:var(--surface);border-radius:8px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent);"></div></div></div>` }).join('')}
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn" id="dashFilterToday">Heute</button>
+        <button class="btn" id="dashFilterHigh">Hohe Priorität</button>
+        <button class="btn" id="dashFilterDone">Erledigte</button>
+      </div>
+    `;
+
+    const recent = document.createElement('div'); recent.className='card h'; recent.innerHTML = '<h3>Aktivitäten (letzte 7 Tage)</h3>';
     const list = document.createElement('div'); list.className='list';
     const acts = [];
-    this.storage.data.persons.slice(-5).forEach(p=> acts.push({t:p.created, text:`Person: ${p.givenName} ${p.familyName}`}));
-    this.storage.data.cases.slice(-5).forEach(c=> acts.push({t:c.created, text:`Vorgang: ${c.title}`}));
-    this.storage.data.tasks.slice(-5).forEach(t=> acts.push({t:t.created, text:`Aufgabe: ${t.title}`}));
-    acts.sort((a,b)=>b.t-a.t).slice(0,6).forEach(a=>{ const it=document.createElement('div'); it.className='item'; it.innerHTML = `<div>${a.text}</div>`; list.appendChild(it); });
+    persons.filter(p=> (now - (p.created || 0)) <= 7*24*3600*1000).forEach(p=> acts.push({t:p.created, text:`Person erstellt: ${p.givenName} ${p.familyName}`}));
+    cases.filter(c=> (now - (c.created || 0)) <= 7*24*3600*1000).forEach(c=> acts.push({t:c.created, text:`Vorgang: ${c.title}`}));
+    tasks.filter(t=> (now - (t.created || 0)) <= 7*24*3600*1000).forEach(t=> acts.push({t:t.created, text:`Aufgabe: ${t.title}`}));
+    acts.sort((a,b)=>b.t-a.t).slice(0,8).forEach(a=>{ const it=document.createElement('div'); it.className='item'; it.innerHTML = `<div>${escapeHtml(a.text)}</div>`; list.appendChild(it); });
     recent.appendChild(list);
 
     const shortcuts = document.createElement('div'); shortcuts.className='card h'; shortcuts.innerHTML = '<h3>Schnellaktionen</h3>';
@@ -502,26 +571,75 @@ class App {
     });
     shortcuts.appendChild(scList);
 
-    container.appendChild(cardStats); container.appendChild(recent); container.appendChild(shortcuts); 
+    container.appendChild(cardTop); container.appendChild(recent); container.appendChild(shortcuts);
     this.view.appendChild(container);
+
+    // dashboard quick filters
+    const applyDashFilter = (mode) => {
+      switch(mode){
+        case 'today': this.personListState.filters = { ...this.personListState.filters }; this.render(); break;
+        case 'high': this.current = { type:'tasks', id:null, mode:'view', tab:'overview' }; this.renderTasks(); break;
+        case 'done': this.current = { type:'cases', id:null, mode:'view', tab:'overview' }; this.renderCaseList(); break;
+      }
+    };
+    const fToday = document.getElementById('dashFilterToday'); if(fToday) fToday.addEventListener('click', ()=>applyDashFilter('today'));
+    const fHigh = document.getElementById('dashFilterHigh'); if(fHigh) fHigh.addEventListener('click', ()=>applyDashFilter('high'));
+    const fDone = document.getElementById('dashFilterDone'); if(fDone) fDone.addEventListener('click', ()=>applyDashFilter('done'));
   }
 
   /* Personen */
   renderPersonList(filter=''){
-    const people = this.storage.data.persons.filter(p=>{ 
-      if(!filter) return true; 
-      const q = filter.toLowerCase(); 
-      return `${p.givenName} ${p.familyName}`.toLowerCase().includes(q) || (p.notes||'').toLowerCase().includes(q) || (Array.isArray(p.remarks) ? p.remarks.some(note=>note.text.toLowerCase().includes(q)) : false);
+    const rawPeople = this.storage.data.persons.filter(p=>{ 
+      const q = filter ? filter.toLowerCase() : '';
+      if(q){
+        const text = `${p.givenName} ${p.familyName}`.toLowerCase();
+        if(text.includes(q) || (p.notes||'').toLowerCase().includes(q) || (Array.isArray(p.remarks) ? p.remarks.some(note=>note.text.toLowerCase().includes(q)) : false)){
+          // continue
+        } else {
+          return false;
+        }
+      }
+
+      const { gender, minAge, maxAge, city } = this.personListState.filters;
+      if(gender && p.gender !== gender) return false;
+      const age = calculateAge(p.birthDate);
+      if(minAge && age !== '—' && Number(age) < Number(minAge)) return false;
+      if(maxAge && age !== '—' && Number(age) > Number(maxAge)) return false;
+      if((minAge || maxAge) && age === '—') return false;
+      if(city && !(`${p.city || ''}`.toLowerCase().includes(city.toLowerCase()))) return false;
+      return true;
     });
-    
+
+    const people = rawPeople.slice().sort((a,b) => {
+      const sortBy = this.personListState.sortBy || 'created';
+      const direction = this.personListState.sortDirection === 'asc' ? 1 : -1;
+      let va = a[sortBy] || '';
+      let vb = b[sortBy] || '';
+      if(sortBy === 'created' || sortBy === 'birthDate'){
+        va = va ? new Date(va).getTime() : 0;
+        vb = vb ? new Date(vb).getTime() : 0;
+      } else {
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+      }
+      if(va < vb) return -1 * direction;
+      if(va > vb) return 1 * direction;
+      return 0;
+    });
+
     this.view.innerHTML = '';
-    const header = document.createElement('div'); header.className='card'; 
+    const header = document.createElement('div'); header.className='card';
     header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
       <div style="display:flex;gap:12px;align-items:center"><h3>Personen</h3></div>
-      <div><button class="btn primary" id="btnNewPersonMain">+ Person anlegen</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn" id="btnOpenPersonFilters">Filter</button>
+        <button class="btn primary" id="btnNewPersonMain">+ Person anlegen</button>
+      </div>
     </div>`;
     this.view.appendChild(header);
-    
+
+    document.getElementById('btnOpenPersonFilters').addEventListener('click', ()=> this.openPersonFilterModal());
+
     const list = document.createElement('div'); list.className='list';
     people.forEach(p=>{
       const it = document.createElement('div'); it.className='item person-card';
@@ -551,6 +669,75 @@ class App {
     this.renderPersonEdit(null); 
   }
 
+  openPersonFilterModal(){
+    const modal = document.createElement('div');
+    modal.className = 'person-filter-modal';
+    modal.innerHTML = `
+      <h3>Personen filtern</h3>
+      <div class="field-grid two-cols">
+        <label class="field"><span>Sortierung</span><select id="personSortBy">
+          <option value="created">Anlegungsdatum</option>
+          <option value="familyName">Nachname</option>
+          <option value="givenName">Vorname</option>
+          <option value="birthDate">Geburtsdatum</option>
+        </select></label>
+        <label class="field"><span>Richtung</span><select id="personSortDirection">
+          <option value="desc">Absteigend</option>
+          <option value="asc">Aufsteigend</option>
+        </select></label>
+        <label class="field"><span>Geschlecht</span><select id="personFilterGender">
+          <option value="">Alle</option>
+          <option value="Männlich">Männlich</option>
+          <option value="Weiblich">Weiblich</option>
+          <option value="Divers">Divers</option>
+          <option value="Keine Angabe">Keine Angabe</option>
+        </select></label>
+        <label class="field"><span>Wohnort</span><input type="text" id="personFilterCity" placeholder="Stadt oder PLZ"></label>
+        <label class="field"><span>Alter Min.</span><input type="number" id="personFilterMinAge" min="0" placeholder="z. B. 18"></label>
+        <label class="field"><span>Alter Max.</span><input type="number" id="personFilterMaxAge" min="0" placeholder="z. B. 40"></label>
+      </div>
+      <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;flex-wrap:wrap;">
+        <button class="btn" id="personFilterReset">Zurücksetzen</button>
+        <button class="btn primary" id="personFilterApply">Anwenden</button>
+      </div>
+    `;
+
+    modal.querySelector('#personSortBy').value = this.personListState.sortBy;
+    modal.querySelector('#personSortDirection').value = this.personListState.sortDirection;
+    modal.querySelector('#personFilterGender').value = this.personListState.filters.gender;
+    modal.querySelector('#personFilterCity').value = this.personListState.filters.city;
+    modal.querySelector('#personFilterMinAge').value = this.personListState.filters.minAge;
+    modal.querySelector('#personFilterMaxAge').value = this.personListState.filters.maxAge;
+
+
+    const applyChanges = () => {
+      this.personListState.sortBy = modal.querySelector('#personSortBy').value;
+      this.personListState.sortDirection = modal.querySelector('#personSortDirection').value;
+      this.personListState.filters.gender = modal.querySelector('#personFilterGender').value;
+      this.personListState.filters.city = modal.querySelector('#personFilterCity').value;
+      this.personListState.filters.minAge = modal.querySelector('#personFilterMinAge').value;
+      this.personListState.filters.maxAge = modal.querySelector('#personFilterMaxAge').value;
+
+      this._savePersonListPrefs();
+      this.closeModal();
+      this.renderPersonList();
+    };
+
+    modal.querySelector('#personFilterApply').addEventListener('click', applyChanges);
+    modal.querySelector('#personFilterReset').addEventListener('click', () => {
+      this.personListState.filters = { gender: '', minAge: '', maxAge: '', city: '' };
+      modal.querySelector('#personSortBy').value = 'created';
+      modal.querySelector('#personSortDirection').value = 'desc';
+      modal.querySelector('#personFilterGender').value = '';
+      modal.querySelector('#personFilterCity').value = '';
+      modal.querySelector('#personFilterMinAge').value = '';
+      modal.querySelector('#personFilterMaxAge').value = '';
+      applyChanges();
+    });
+
+    this.openModal(modal);
+  }
+
   renderPersonDetail(personId){
     const p = this.storage.data.persons.find(x=>x.id===personId);
     if(!p) return this.renderPersonList();
@@ -578,6 +765,15 @@ class App {
     headerTop.appendChild(info); headerTop.appendChild(actions);
     header.appendChild(headerTop);
     this.view.appendChild(header);
+
+    // Duplikat-Warnung
+    const duplicates = this.findDuplicatePersons(personId);
+    if(duplicates.length > 0){
+      const dupAlert = document.createElement('div');
+      dupAlert.style.cssText = 'background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:16px;color:#856404;';
+      dupAlert.innerHTML = `<strong>⚠️ Mögliche Duplikate gefunden:</strong> ${duplicates.map(d => `${escapeHtml(d.givenName)} ${escapeHtml(d.familyName)} (${(d.matchScore/50*100).toFixed(0)}%)`).join(', ')}`;
+      this.view.appendChild(dupAlert);
+    }
 
     const tabs = document.createElement('div'); tabs.className='tabs';
     ['stammdaten', 'sozial', 'umfeld', 'identitaetsprofil','vermerke','hinweise','vorgaenge'].forEach(t=>{
@@ -609,7 +805,7 @@ class App {
           <h4>Identifikation</h4>
           <div class="field-grid two-cols">
             <div class="field"><label>Interne Identifikationsnummer</label><div>${escapeHtml(internalId)}</div></div>
-            <div class="field qr-panel"><label>QR-Code</label><div id="qrCanvas"></div></div>
+            <div class="field qr-panel"><label>QR-Code</label><div id="qrCanvas"></div><div class="qr-note">Scanne den Code, um diese Personenakte direkt zu öffnen.</div></div>
           </div>
         </div>
         <div class="section">
@@ -634,7 +830,8 @@ class App {
         </div>
       `;
       this.view.appendChild(content);
-      content.querySelector('#qrCanvas').appendChild(createQRCodeCanvas(internalId, 160));
+      window.history.replaceState(null, '', `#person=${encodeURIComponent(p.id)}`);
+      content.querySelector('#qrCanvas').appendChild(createQRCodeCanvas(p.id, 160));
     } else if(this.current.tab==='identitaetsprofil'){
       const extraGallery = (p.extraPhotos || []).map((src, idx) => `<div class="photo-thumb"><img src="${src}" alt="Zusatzfoto ${idx + 1}"></div>`).join('');
       content.innerHTML = `
@@ -1461,6 +1658,7 @@ class App {
         recognitionLevel: fd.get('recognitionLevel'),
         behaviorAssessments: fd.getAll('behaviorAssessments'),
         identityNotes: fd.get('identityNotes')
+        
       };
       if(isEdit){ 
         this.storage.updatePerson(personId,data);
@@ -1482,6 +1680,14 @@ class App {
   }
 
   /* Cases */
+  recordCaseHistory(caseId, event){
+    const c = this.storage.data.cases.find(x => x.id === caseId);
+    if(!c) return;
+    const history = Array.isArray(c.history) ? [...c.history] : [];
+    history.push({ id: genId('h-'), event, timestamp: Date.now() });
+    this.storage.updateCase(caseId, { history });
+  }
+
   renderCaseList(){
     const list = this.storage.data.cases;
     this.view.innerHTML='';
@@ -1525,20 +1731,22 @@ class App {
     const info = document.createElement('div'); info.className='record-header-info';
     info.innerHTML = `<h3>${escapeHtml(c.title)}</h3><div class="record-meta">Vorgangsakte • ${escapeHtml(c.caseNumber || c.id)} • ${escapeHtml(c.category)}</div>`;
     const actions = document.createElement('div'); actions.className='record-header-actions';
+    const btnTask = document.createElement('button'); btnTask.className='btn'; btnTask.textContent='Folgeaufgabe';
+    btnTask.addEventListener('click', ()=>{ this.openTaskForm(null, c.id, c.title); });
     const btnEdit = document.createElement('button'); btnEdit.className='btn'; btnEdit.textContent='Bearbeiten';
     btnEdit.addEventListener('click', ()=>{ this.current.mode='edit'; this.render(); });
     const btnClose = document.createElement('button'); btnClose.className='btn'; btnClose.textContent='Schließen';
     btnClose.addEventListener('click', ()=>{ this.current={type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
-    actions.appendChild(btnEdit); actions.appendChild(btnClose);
+    actions.appendChild(btnTask); actions.appendChild(btnEdit); actions.appendChild(btnClose);
     headerTop.appendChild(info); headerTop.appendChild(actions);
     header.appendChild(headerTop);
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','notes','history'].forEach(t=>{
+    ['overview','participants','measures','notes','history'].forEach(t=>{
       const tab = document.createElement('div');
       tab.className='tab ' + (t === this.current.tab ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', notes:'Notizen', history:'Historie'}[t];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[t];
       tab.addEventListener('click', ()=>{ this.current.tab=t; this.render(); });
       tabs.appendChild(tab);
     });
@@ -1546,6 +1754,7 @@ class App {
 
     if(this.current.mode==='edit'){ this.renderCaseEdit(caseId); return; }
 
+    const caseTasks = this.storage.data.tasks.filter(t => t.caseId === c.id);
     const content = document.createElement('div'); content.className='card record-card-content';
     if(this.current.tab==='overview'){
       content.innerHTML = `
@@ -1557,18 +1766,22 @@ class App {
             <div class="field"><label>Datum</label><div>${escapeHtml(formatDateTimeEU(c.date, c.time))}</div></div>
             <div class="field"><label>Priorität</label><div>${(c.priority||[]).length ? escapeHtml((c.priority||[]).join(', ')) : '—'}</div></div>
             <div class="field"><label>Beteiligte Personen</label><div>${(c.participants||[]).length}</div></div>
+            <div class="field"><label>Fallort</label><div>${escapeHtml(c.location || '—')}</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <h4>Verfahren</h4>
+          <div class="field-grid three-cols">
+            <div class="field"><label>Verfahrensart</label><div>${escapeHtml(c.processType || '—')}</div></div>
+            <div class="field"><label>Verantwortliche Einheit</label><div>${escapeHtml(c.responsibleUnit || '—')}</div></div>
+            <div class="field"><label>Frist</label><div>${escapeHtml(formatDateEU(c.deadline) || '—')}</div></div>
+            <div class="field"><label>Nächster Schritt</label><div>${escapeHtml(c.nextStep || '—')}</div></div>
+            <div class="field"><label>Verknüpfte Aufgabe</label><div>${caseTasks.length ? `${caseTasks.length} Aufgabe(n)` : 'Keine Folgeaufgaben'}</div></div>
           </div>
         </div>
         <div class="section">
           <h4>Beschreibung</h4>
           <div class="notes-box">${escapeHtml(c.description || 'Keine Beschreibung vorhanden')}</div>
-        </div>
-        <div class="section">
-          <h4>Maßnahmen</h4>
-          <div class="field-grid two-cols">
-            <div class="field"><label>Aktionen</label><div>${(c.measureActions||[]).length ? escapeHtml((c.measureActions||[]).join(', ')) : 'Keine Aktionen dokumentiert'}</div></div>
-            <div class="field"><label>Details</label><div>${escapeHtml(c.measureDescription || 'Keine Maßnahmenbeschreibung')}</div></div>
-          </div>
         </div>
       `;
     } else if(this.current.tab==='participants'){
@@ -1593,6 +1806,20 @@ class App {
         list.appendChild(empty);
       }
       content.appendChild(list);
+    } else if(this.current.tab==='measures'){
+      content.innerHTML = `
+        <div class="section">
+          <h4>Maßnahmen</h4>
+          <div class="field-grid two-cols">
+            <div class="field"><label>Aktionen</label><div>${(c.measureActions||[]).length ? escapeHtml((c.measureActions||[]).join(', ')) : 'Keine Aktionen dokumentiert'}</div></div>
+            <div class="field"><label>Maßnahmenbeschreibung</label><div>${escapeHtml(c.measureDescription || 'Keine Maßnahmenbeschreibung')}</div></div>
+            <div class="field"><label>Verantwortliche Einheit</label><div>${escapeHtml(c.responsibleUnit || '—')}</div></div>
+            <div class="field"><label>Nächster Schritt</label><div>${escapeHtml(c.nextStep || '—')}</div></div>
+            <div class="field"><label>Frist</label><div>${escapeHtml(formatDateEU(c.deadline) || '—')}</div></div>
+            <div class="field"><label>Fallort</label><div>${escapeHtml(c.location || '—')}</div></div>
+          </div>
+        </div>
+      `;
     } else if(this.current.tab==='notes'){
       const notesHtml = (c.notes || []).map(note => `
         <div class="section note-entry">
@@ -1678,7 +1905,7 @@ class App {
 
   renderCaseEdit(caseId){
     const isEdit = !!caseId;
-    const c = isEdit ? this.storage.data.cases.find(x=>x.id===caseId) : {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',notes:[],history:[],created:Date.now()};
+    const c = isEdit ? this.storage.data.cases.find(x=>x.id===caseId) : {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',location:'',responsibleUnit:'',deadline:'',nextStep:'',processType:'',notes:[],history:[],created:Date.now()};
     
     this.view.innerHTML = '';
     const header = document.createElement('div'); header.className='record-header';
@@ -1687,9 +1914,9 @@ class App {
     
     this.current.tab = this.current.tab || 'overview';
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','notes','history'].forEach(key=>{
+    ['overview','participants','measures','notes','history'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', notes:'Notizen', history:'Historie'}[key];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[key];
       tab.addEventListener('click', ()=>{ this.current.tab = key; this.renderCaseEdit(caseId); });
       tabs.appendChild(tab);
     });
@@ -1729,6 +1956,16 @@ class App {
         <div class="field"><textarea name="description" placeholder="Erläuterung des Vorgangs...">${escapeHtml(c.description || '')}</textarea></div>
       </div>
       <div class="section">
+        <h4>Verfahren & Steuerung</h4>
+        <div class="field-grid three-cols">
+          <div class="field"><label>Fallort</label><input name="location" type="text" value="${escapeHtml(c.location || '')}"></div>
+          <div class="field"><label>Verfahrensart</label><input name="processType" type="text" value="${escapeHtml(c.processType || '')}"></div>
+          <div class="field"><label>Verantwortliche Einheit</label><input name="responsibleUnit" type="text" value="${escapeHtml(c.responsibleUnit || '')}"></div>
+          <div class="field"><label>Frist</label><input name="deadline" type="date" value="${escapeHtml(c.deadline || '')}"></div>
+          <div class="field" style="grid-column: span 2"><label>Nächster Schritt</label><textarea name="nextStep" placeholder="Nächster Schritt / Folgeaufgabe">${escapeHtml(c.nextStep || '')}</textarea></div>
+        </div>
+      </div>
+      <div class="section">
         <h4>Maßnahmen</h4>
         <div class="field-grid two-cols">
           <div class="field"><label>Dokumentierte Maßnahmen</label><select name="measureActions" multiple size="6">${OPTIONS.measureActions.map(option => `<option value="${option}" ${(c.measureActions||[]).includes(option) ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
@@ -1744,7 +1981,7 @@ class App {
     form.querySelector('select[name=category]').value = c.category;
     form.querySelector('select[name=status]').value = c.status;
     form.querySelectorAll('.section').forEach((section,index)=>{
-      const mapping = ['overview','overview','overview','participants','participants','overview','overview'];
+      const mapping = ['overview','participants','overview','measures','measures'];
       section.dataset.section = mapping[index] || 'overview';
       section.style.display = section.dataset.section === this.current.tab ? '' : 'none';
     });
@@ -1813,7 +2050,12 @@ class App {
         priority: fd.getAll('priority'),
         measureActions: fd.getAll('measureActions'),
         measureDescription: fd.get('measureDescription'),
-        description: fd.get('description')
+        description: fd.get('description'),
+        location: fd.get('location'),
+        responsibleUnit: fd.get('responsibleUnit'),
+        deadline: fd.get('deadline'),
+        nextStep: fd.get('nextStep'),
+        processType: fd.get('processType')
       };
       if(isEdit){
         this.storage.updateCase(caseId, data);
@@ -1821,6 +2063,7 @@ class App {
       } else {
         data.id = genId('c-');
         data.created = Date.now();
+        data.history = [{ id: genId('h-'), event: 'Vorgang angelegt', timestamp: Date.now() }];
         this.storage.addCase(data);
         this.current = {type:'case',id:data.id,mode:'view',tab:'overview'};
       }
@@ -1853,9 +2096,10 @@ class App {
     
     const list = document.createElement('div'); list.className='list'; 
     tasks.forEach(t=>{ 
+      const linkedCase = this.storage.data.cases.find(c => c.id === t.caseId);
       const it=document.createElement('div'); it.className='item'; 
       const left=document.createElement('div'); 
-      left.innerHTML=`<strong>${t.title}</strong><div class="muted">Fällig: ${escapeHtml(formatDateEU(t.due))} • ${t.status}</div>`; 
+      left.innerHTML=`<strong>${escapeHtml(t.title)}</strong><div class="muted">Fällig: ${escapeHtml(formatDateEU(t.due))} • ${escapeHtml(t.status)}${linkedCase ? ' • Vorgang: ' + escapeHtml(linkedCase.title) : ''}</div>`; 
       const right=document.createElement('div'); right.style.display='flex'; right.style.gap='8px';
       const btnEdit=document.createElement('button'); btnEdit.className='btn'; btnEdit.textContent='Bearbeiten'; 
       btnEdit.addEventListener('click', ()=>this.openTaskForm(t.id)); 
@@ -1869,12 +2113,15 @@ class App {
     document.getElementById('btnNewTaskMain').addEventListener('click', ()=>this.openTaskForm()); 
   }
 
-  openTaskForm(taskId){ 
+  openTaskForm(taskId, caseId, caseTitle){ 
     const isEdit = !!taskId; 
-    const t = isEdit ? this.storage.data.tasks.find(x=>x.id===taskId) : {title:'',status:'Offen',due:new Date().toISOString().slice(0,10),description:''}; 
+    const t = isEdit ? this.storage.data.tasks.find(x=>x.id===taskId) : {title:'',status:'Offen',due:new Date().toISOString().slice(0,10),description:'',caseId:caseId || ''}; 
+    const linkedCase = caseTitle || this.storage.data.cases.find(c => c.id === (caseId || t.caseId))?.title || ''; 
     const form = document.createElement('form'); form.className='card'; 
     form.innerHTML = `
       <h3>${isEdit? 'Aufgabe bearbeiten' : 'Neue Aufgabe'}</h3>
+      ${linkedCase ? `<div class="field"><label>Vorgang</label><div>${escapeHtml(linkedCase)}</div></div>` : ''}
+      <input type="hidden" name="caseId" value="${escapeHtml(caseId || t.caseId || '')}">
       <div><label>Titel *</label><input name="title" type="text" value="${(t.title||'').replace(/"/g, '&quot;')}" required></div>
       <div class="row">
         <div style="flex:1"><label>Status</label><select name="status"><option>Offen</option><option>In Arbeit</option><option>Erledigt</option></select></div>
@@ -1892,7 +2139,7 @@ class App {
     form.addEventListener('submit', e=>{ 
       e.preventDefault(); 
       const fd=new FormData(form); 
-      const data={title:fd.get('title'),status:fd.get('status'),due:fd.get('due'),description:fd.get('description')}; 
+      const data={title:fd.get('title'),status:fd.get('status'),due:fd.get('due'),description:fd.get('description'),caseId:fd.get('caseId') || ''}; 
       if(isEdit){ this.storage.updateTask(taskId,data); } 
       else { data.id=genId('t-'); data.created=Date.now(); this.storage.addTask(data);} 
       this.renderTasks(); 
@@ -1981,6 +2228,64 @@ class App {
     }); 
     menu.appendChild(list); 
     this.openModal(menu); 
+  }
+
+  findDuplicatePersons(personId){
+    const person = this.storage.data.persons.find(p => p.id === personId);
+    if(!person) return [];
+    
+    const duplicates = [];
+    const normalizeString = str => (str || '').toLowerCase().trim();
+    const levenshteinDistance = (a, b) => {
+      const an = normalizeString(a), bn = normalizeString(b);
+      if(an === bn) return 0;
+      const d = [];
+      for(let i = 0; i <= an.length; i++) d[i] = [i];
+      for(let j = 0; j <= bn.length; j++) d[0][j] = j;
+      for(let i = 1; i <= an.length; i++){
+        for(let j = 1; j <= bn.length; j++){
+          const cost = an[i-1] === bn[j-1] ? 0 : 1;
+          d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + cost);
+        }
+      }
+      return d[an.length][bn.length];
+    };
+
+    this.storage.data.persons.forEach(p => {
+      if(p.id === personId) return;
+      
+      let isDuplicate = false;
+      
+      // Kriterium 1: Identisches Geburtsdatum + ähnlicher Name (sehr streng)
+      if(person.birthDate && p.birthDate === person.birthDate){
+        const givenDist = levenshteinDistance(person.givenName, p.givenName);
+        const familyDist = levenshteinDistance(person.familyName, p.familyName);
+        // Geburtsdatum gleich + beide Namen sehr ähnlich (maximal 1 Buchstabe Unterschied)
+        if(givenDist <= 1 && familyDist <= 1) isDuplicate = true;
+      }
+      
+      // Kriterium 2: Nachname identisch + Geburtsdatum identisch (sicherstes Kriterium)
+      if(person.familyName && p.familyName && person.birthDate && p.birthDate){
+        if(normalizeString(person.familyName) === normalizeString(p.familyName) && 
+           person.birthDate === p.birthDate){
+          isDuplicate = true;
+        }
+      }
+      
+      // Kriterium 3: Vorname + Nachname identisch + Geburtsort identisch
+      if(person.givenName && p.givenName && person.familyName && p.familyName && 
+         person.birthplace && p.birthplace){
+        if(normalizeString(person.givenName) === normalizeString(p.givenName) &&
+           normalizeString(person.familyName) === normalizeString(p.familyName) &&
+           normalizeString(person.birthplace) === normalizeString(p.birthplace)){
+          isDuplicate = true;
+        }
+      }
+      
+      if(isDuplicate) duplicates.push(p);
+    });
+    
+    return duplicates;
   }
 }
 
