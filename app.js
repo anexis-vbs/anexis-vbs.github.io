@@ -1685,12 +1685,12 @@ class App {
   }
 
   /* Cases */
-  recordCaseHistory(caseId, event){
+  async recordCaseHistory(caseId, event){
     const c = this.storage.data.cases.find(x => x.id === caseId);
     if(!c) return;
     const history = Array.isArray(c.history) ? [...c.history] : [];
     history.push({ id: genId('h-'), event, timestamp: Date.now() });
-    this.storage.updateCase(caseId, { history });
+    return this.storage.updateCase(caseId, { history });
   }
 
   renderCaseList(){
@@ -1710,7 +1710,24 @@ class App {
       const btnOpen=document.createElement('button'); btnOpen.className='btn'; btnOpen.textContent='Akte'; 
       btnOpen.addEventListener('click', ()=>{ this.current={type:'case',id:c.id,mode:'view',tab:'overview'}; this.render(); }); 
       const btnDel=document.createElement('button'); btnDel.className='btn'; btnDel.textContent='🗑'; 
-      btnDel.addEventListener('click', ()=>{ if(confirm('Vorgang löschen?')){ this.storage.deleteCase(c.id); this.renderCaseList(); } }); 
+      btnDel.addEventListener('click', ()=>{ 
+        const confirmNode = document.createElement('div');
+        confirmNode.innerHTML = `
+          <h3>Vorgang wirklich löschen?</h3>
+          <p>Diese Aktion kann nicht rückgängig gemacht werden. Zum Bestätigen geben Sie bitte <strong>"LÖSCHEN"</strong> ein.</p>
+          <div style="margin-top:12px"><input id="modalConfirmText" placeholder="LÖSCHEN eingeben" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+            <button class="btn" id="modalCancel">Abbrechen</button>
+            <button class="btn danger" id="modalConfirm" disabled>Löschen</button>
+          </div>
+        `;
+        this.openModal(confirmNode);
+        const txt = confirmNode.querySelector('#modalConfirmText');
+        const btn = confirmNode.querySelector('#modalConfirm');
+        confirmNode.querySelector('#modalCancel').addEventListener('click', ()=>{ this.closeModal(); });
+        txt?.addEventListener('input', ()=>{ btn.disabled = (txt.value || '').trim().toLowerCase() !== 'löschen'; });
+        btn.addEventListener('click', ()=>{ this.closeModal(); this.storage.deleteCase(c.id); this.renderCaseList(); });
+      }); 
       right.appendChild(btnOpen); right.appendChild(btnDel); 
       it.appendChild(left); it.appendChild(right); 
       listEl.appendChild(it); 
@@ -1748,10 +1765,10 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','info','measures','notes','history'].forEach(t=>{
+    ['overview','participants','info','measures','evidence','notes','history'].forEach(t=>{
       const tab = document.createElement('div');
       tab.className='tab ' + (t === this.current.tab ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[t];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', evidence:'Beweismittel & Aussagen', notes:'Notizen', history:'Historie'}[t];
       tab.addEventListener('click', ()=>{ this.current.tab=t; this.render(); });
       tabs.appendChild(tab);
     });
@@ -1845,6 +1862,26 @@ class App {
           `).join('') : '<div class="notes-box">Keine Maßnahmen vorhanden</div>'}
         </div>
       `;
+    } else if(this.current.tab==='evidence'){
+      const evidenceItems = c.evidence || [];
+      content.innerHTML = `
+        <div class="section">
+          <h4>Beweismittel & Aussagen</h4>
+          ${evidenceItems.length ? evidenceItems.map(item => `
+            <div class="section note-entry" style="margin-top:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+                <div style="min-width:240px;flex:1;">
+                  <strong>${escapeHtml(item.title || item.type)}</strong>
+                  <div class="muted">${escapeHtml(item.type)} • ${escapeHtml(formatDateTimeBerlin(item.created || Date.now()))}</div>
+                  ${item.type === 'Zeugenaussage' ? `<div class="muted">Zeuge: ${escapeHtml(item.witness || 'Nicht angegeben')}</div>` : ''}
+                </div>
+              </div>
+              <div class="notes-box">${escapeHtml(item.description || item.text || 'Keine Details')}</div>
+              ${item.mediaUrl ? `<div class="photo-preview" style="margin-top:14px;"><img src="${escapeHtml(item.mediaUrl)}" alt="${escapeHtml(item.title || item.type)}"></div>` : ''}
+            </div>
+          `).join('') : '<div class="notes-box">Keine Beweismittel oder Aussagen vorhanden</div>'}
+        </div>
+      `;
     } else if(this.current.tab==='notes'){
       const notesHtml = (c.notes || []).map(note => `
         <div class="section note-entry">
@@ -1931,7 +1968,7 @@ class App {
   renderCaseEdit(caseId){
     const isEdit = !!caseId;
     if(!isEdit){
-      this.current.caseDraft = this.current.caseDraft || {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',location:'',responsibleUnit:'',deadline:'',nextStep:'',processType:'',notes:[],measures:[],history:[],created:Date.now()};
+      this.current.caseDraft = this.current.caseDraft || {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',location:'',responsibleUnit:'',deadline:'',nextStep:'',processType:'',notes:[],evidence:[],measures:[],history:[],created:Date.now()};
     }
     const c = isEdit ? this.storage.data.cases.find(x=>x.id===caseId) : this.current.caseDraft;
 
@@ -1942,9 +1979,9 @@ class App {
     
     this.current.tab = this.current.tab || 'overview';
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','info','measures','notes','history'].forEach(key=>{
+    ['overview','participants','info','measures','evidence','notes','history'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[key];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', evidence:'Beweismittel & Aussagen', notes:'Notizen', history:'Historie'}[key];
       tab.addEventListener('click', ()=>{ this.current.tab = key; this.renderCaseEdit(caseId); });
       tabs.appendChild(tab);
     });
@@ -2009,6 +2046,37 @@ class App {
           </div>
         `).join('') : '<div class="notes-box">Keine Maßnahmen vorhanden</div>'}
       </div>
+      <div class="section" data-section="evidence" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div>
+            <h4>Beweismittel & Aussagen</h4>
+            <div class="muted" style="max-width:560px;">Fotos, Zeugenaussagen und Beweismittel dokumentieren.</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <button class="btn" type="button" id="addCaseEvidenceButton">Beweismittel hinzufügen</button>
+            <button class="btn" type="button" id="addCasePhotoButton">Foto hinzufügen</button>
+            <button class="btn" type="button" id="addCaseStatementButton">Zeugenaussage hinzufügen</button>
+          </div>
+        </div>
+        <div id="caseEvidenceCreateArea"></div>
+        ${(c.evidence || []).length ? (c.evidence || []).map(item => `
+          <div class="section evidence-entry" style="margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+              <div style="min-width:240px;flex:1;">
+                <strong>${escapeHtml(item.title || item.type)}</strong>
+                <div class="muted">${escapeHtml(item.type)} • ${escapeHtml(formatDateTimeBerlin(item.created || Date.now()))}</div>
+                ${item.type === 'Zeugenaussage' ? `<div class="muted">Zeuge: ${escapeHtml(item.witness || 'Nicht angegeben')}</div>` : ''}
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <button class="btn" type="button" data-edit-evidence="${item.id}">Bearbeiten</button>
+                <button class="btn" type="button" data-delete-evidence="${item.id}">Löschen</button>
+              </div>
+            </div>
+            <div class="notes-box">${escapeHtml(item.description || item.text || 'Keine Details')}</div>
+            ${item.mediaUrl ? `<div class="photo-preview" style="margin-top:14px;"><img src="${escapeHtml(item.mediaUrl)}" alt="${escapeHtml(item.title || item.type)}"></div>` : ''}
+          </div>
+        `).join('') : '<div class="notes-box">Keine Beweismittel oder Aussagen vorhanden</div>'}
+      </div>
       <div class="section" data-section="notes" style="display:none;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h4>Notizen & Dokumentation</h4><button class="btn primary" type="button" id="addCaseNoteButton">+ Neue Notiz</button></div>
         <div id="caseNoteCreateArea"></div>
@@ -2035,6 +2103,7 @@ class App {
       <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)">
         <button class="btn primary" type="submit">Speichern</button>
         <button class="btn" type="button" id="cancelForm">Abbrechen</button>
+        ${isEdit ? '<button class="btn danger" type="button" id="deleteCaseButton">Vorgang löschen</button>' : ''}
       </div>
     `;
     
@@ -2048,11 +2117,20 @@ class App {
     const addNoteBtn = form.querySelector('#addCaseNoteButton');
     const measureCreateArea = form.querySelector('#caseMeasureCreateArea');
     const addMeasureBtn = form.querySelector('#addCaseMeasureButton');
+    const evidenceCreateArea = form.querySelector('#caseEvidenceCreateArea');
+    const addEvidenceBtn = form.querySelector('#addCaseEvidenceButton');
+    const addPhotoBtn = form.querySelector('#addCasePhotoButton');
+    const addStatementBtn = form.querySelector('#addCaseStatementButton');
 
-    const saveNote = (noteText) => {
+    const maybeAwait = async (maybePromise) => {
+      if(maybePromise && typeof maybePromise.then === 'function') return await maybePromise;
+      return maybePromise;
+    };
+
+    const saveNote = async (noteText) => {
       const notes = [...(c.notes || []), { id: genId('n-'), text: noteText, created: Date.now() }];
       if(isEdit){
-        this.storage.updateCase(c.id, { notes });
+        await maybeAwait(this.storage.updateCase(c.id, { notes }));
       } else {
         c.notes = notes;
         this.current.caseDraft = c;
@@ -2060,10 +2138,10 @@ class App {
       this.renderCaseEdit(caseId);
     };
 
-    const deleteNote = (noteId) => {
+    const deleteNote = async (noteId) => {
       const notes = (c.notes || []).filter(note => note.id !== noteId);
       if(isEdit){
-        this.storage.updateCase(c.id, { notes });
+        await maybeAwait(this.storage.updateCase(c.id, { notes }));
       } else {
         c.notes = notes;
         this.current.caseDraft = c;
@@ -2071,10 +2149,10 @@ class App {
       this.renderCaseEdit(caseId);
     };
 
-    const saveMeasure = (measureData) => {
+    const saveMeasure = async (measureData) => {
       const measures = [...(c.measures || []), Object.assign({ id: genId('m-'), created: Date.now(), status: 'Offen' }, measureData)];
       if(isEdit){
-        this.storage.updateCase(c.id, { measures });
+        await maybeAwait(this.storage.updateCase(c.id, { measures }));
       } else {
         c.measures = measures;
         this.current.caseDraft = c;
@@ -2082,15 +2160,96 @@ class App {
       this.renderCaseEdit(caseId);
     };
 
-    const deleteMeasure = (measureId) => {
+    const deleteMeasure = async (measureId) => {
       const measures = (c.measures || []).filter(measure => measure.id !== measureId);
       if(isEdit){
-        this.storage.updateCase(c.id, { measures });
+        await maybeAwait(this.storage.updateCase(c.id, { measures }));
       } else {
         c.measures = measures;
         this.current.caseDraft = c;
       }
       this.renderCaseEdit(caseId);
+    };
+
+    const readFileAsDataURL = file => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const saveEvidence = async (evidenceData, existingId = null) => {
+      const updatedEntry = Object.assign({ id: existingId || genId('e-'), created: existingId ? undefined : Date.now() }, evidenceData);
+      const evidence = existingId ? (c.evidence || []).map(item => item.id === existingId ? Object.assign({}, item, updatedEntry) : item) : [...(c.evidence || []), Object.assign({ id: genId('e-'), created: Date.now() }, evidenceData)];
+      if(isEdit){
+        await maybeAwait(this.storage.updateCase(c.id, { evidence }));
+        const action = existingId ? 'bearbeitet' : 'hinzugefügt';
+        await this.recordCaseHistory(c.id, `Beweismittel „${updatedEntry.title || evidenceData.type || 'Eintrag'}“ ${action}`);
+      } else {
+        c.evidence = evidence;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    const deleteEvidence = async (evidenceId) => {
+      const entry = (c.evidence || []).find(item => item.id === evidenceId);
+      const evidence = (c.evidence || []).filter(item => item.id !== evidenceId);
+      if(isEdit){
+        await maybeAwait(this.storage.updateCase(c.id, { evidence }));
+        await this.recordCaseHistory(c.id, `Beweismittel „${entry?.title || 'Eintrag'}“ gelöscht`);
+      } else {
+        c.evidence = evidence;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    const renderEvidenceForm = (type, existing = null) => {
+      if(!evidenceCreateArea) return;
+      const itemType = existing ? existing.type : type === 'photo' ? 'Foto' : type === 'statement' ? 'Zeugenaussage' : 'Beweismittel';
+      const titleValue = escapeHtml(existing?.title || '');
+      const descriptionValue = escapeHtml(existing?.description || existing?.text || '');
+      const witnessValue = escapeHtml(existing?.witness || '');
+      const mediaUrlValue = escapeHtml(existing?.mediaUrl || '');
+      evidenceCreateArea.innerHTML = `
+        <div class="section evidence-form-section">
+          <div class="field-grid two-cols" style="gap:18px;">
+            <div class="field"><label>Titel</label><input id="newEvidenceTitle" type="text" placeholder="Kurzer Titel" value="${titleValue}"></div>
+            <div class="field"><label>Typ</label><input id="newEvidenceType" type="text" value="${itemType}" readonly></div>
+            ${itemType === 'Foto' ? `<div class="field"><label>Foto-Datei</label><input id="newEvidencePhotoFile" type="file" accept="image/*"></div><div class="field"><label>Oder Bild-URL</label><input id="newEvidencePhotoUrl" type="text" placeholder="https://..." value="${mediaUrlValue}"></div>` : ''}
+            ${itemType === 'Zeugenaussage' ? `<div class="field"><label>Zeuge</label><input id="newEvidenceWitness" type="text" placeholder="Name des Zeugen" value="${witnessValue}"></div>` : ''}
+            <div class="field" style="grid-column: span 2"><label>Beschreibung</label><textarea id="newEvidenceDescription" placeholder="Details zum Eintrag...">${descriptionValue}</textarea></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:18px;justify-content:flex-end;flex-wrap:wrap;">
+            <button class="btn" type="button" id="cancelCaseEvidenceButton">Abbrechen</button>
+            <button class="btn primary" type="button" id="saveCaseEvidenceButton">${existing ? 'Aktualisieren' : 'Speichern'}</button>
+          </div>
+        </div>
+      `;
+      const saveBtn = evidenceCreateArea.querySelector('#saveCaseEvidenceButton');
+      const cancelBtn = evidenceCreateArea.querySelector('#cancelCaseEvidenceButton');
+      saveBtn.addEventListener('click', async () => {
+        const title = evidenceCreateArea.querySelector('#newEvidenceTitle').value.trim();
+        const description = evidenceCreateArea.querySelector('#newEvidenceDescription').value.trim();
+        let mediaUrl = '';
+        let witness = '';
+        if(itemType === 'Foto'){
+          const fileInput = evidenceCreateArea.querySelector('#newEvidencePhotoFile');
+          const urlInput = evidenceCreateArea.querySelector('#newEvidencePhotoUrl');
+          if(fileInput && fileInput.files.length){
+            mediaUrl = await readFileAsDataURL(fileInput.files[0]);
+          } else {
+            mediaUrl = (urlInput.value || '').trim();
+          }
+        }
+        if(itemType === 'Zeugenaussage'){
+          witness = evidenceCreateArea.querySelector('#newEvidenceWitness').value.trim();
+        }
+        if(!title && !description && !mediaUrl && !witness) return;
+        await saveEvidence({ title: title || itemType, type: itemType, description, witness, mediaUrl }, existing?.id || null);
+      });
+      cancelBtn.addEventListener('click', () => { evidenceCreateArea.innerHTML = ''; });
     };
 
     if(addNoteBtn && noteCreateArea){
@@ -2152,6 +2311,22 @@ class App {
       });
     }
 
+    if(addEvidenceBtn){
+      addEvidenceBtn.addEventListener('click', () => renderEvidenceForm('evidence'));
+    }
+    if(addPhotoBtn){
+      addPhotoBtn.addEventListener('click', () => renderEvidenceForm('photo'));
+    }
+    if(addStatementBtn){
+      addStatementBtn.addEventListener('click', () => renderEvidenceForm('statement'));
+    }
+
+    form.querySelectorAll('[data-edit-evidence]').forEach(btn => btn.addEventListener('click', () => {
+      const evidenceId = btn.dataset.editEvidence;
+      const entry = (c.evidence || []).find(item => item.id === evidenceId);
+      if(entry) renderEvidenceForm(entry.type === 'Foto' ? 'photo' : entry.type === 'Zeugenaussage' ? 'statement' : 'evidence', entry);
+    }));
+
     form.querySelectorAll('[data-delete-note]').forEach(btn => btn.addEventListener('click', () => {
       const noteId = btn.dataset.deleteNote;
       deleteNote(noteId);
@@ -2161,8 +2336,13 @@ class App {
       const measureId = btn.dataset.deleteMeasure;
       deleteMeasure(measureId);
     }));
+
+    form.querySelectorAll('[data-delete-evidence]').forEach(btn => btn.addEventListener('click', () => {
+      const evidenceId = btn.dataset.deleteEvidence;
+      deleteEvidence(evidenceId);
+    }));
     
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const fd = new FormData(form);
       const data = {
@@ -2186,10 +2366,11 @@ class App {
         deadline: fd.get('deadline'),
         nextStep: fd.get('nextStep'),
         processType: fd.get('processType'),
-        internalReference: fd.get('internalReference')
+        internalReference: fd.get('internalReference'),
+        evidence: c.evidence || []
       };
       if(isEdit){
-        this.storage.updateCase(caseId, data);
+        await maybeAwait(this.storage.updateCase(caseId, data));
         this.current = {type:'case',id:caseId,mode:'view',tab:'overview'};
       } else {
         data.id = genId('c-');
@@ -2197,7 +2378,7 @@ class App {
         data.notes = c.notes || [];
         data.measures = c.measures || [];
         data.history = [{ id: genId('h-'), event: 'Vorgang angelegt', timestamp: Date.now() }];
-        this.storage.addCase(data);
+        await maybeAwait(this.storage.addCase(data));
         this.current = {type:'case',id:data.id,mode:'view',tab:'overview'};
         this.current.caseDraft = null;
       }
@@ -2214,6 +2395,27 @@ class App {
     });
 
     form.querySelector('#cancelForm').addEventListener('click', ()=>{ this.current.caseDraft = null; this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
+    const deleteCaseBtn = form.querySelector('#deleteCaseButton');
+    if(deleteCaseBtn){
+      deleteCaseBtn.addEventListener('click', ()=>{
+        const confirmNode = document.createElement('div');
+        confirmNode.innerHTML = `
+          <h3>Vorgang wirklich löschen?</h3>
+          <p>Diese Aktion kann nicht rückgängig gemacht werden. Zum Bestätigen geben Sie bitte <strong>"LÖSCHEN"</strong> ein.</p>
+          <div style="margin-top:12px"><input id="modalConfirmText" placeholder="LÖSCHEN eingeben" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">
+            <button class="btn" id="modalCancel">Abbrechen</button>
+            <button class="btn danger" id="modalConfirm" disabled>Löschen</button>
+          </div>
+        `;
+        this.openModal(confirmNode);
+        const txt = confirmNode.querySelector('#modalConfirmText');
+        const btn = confirmNode.querySelector('#modalConfirm');
+        confirmNode.querySelector('#modalCancel').addEventListener('click', ()=>{ this.closeModal(); });
+        txt?.addEventListener('input', ()=>{ btn.disabled = (txt.value || '').trim().toLowerCase() !== 'löschen'; });
+        btn.addEventListener('click', ()=>{ this.closeModal(); this.storage.deleteCase(caseId); this.renderCaseList(); });
+      });
+    }
     const cancelCaseBtn = header.querySelector('#cancelCase');
     if(cancelCaseBtn) cancelCaseBtn.addEventListener('click', ()=>{ this.current.caseDraft = null; this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
     

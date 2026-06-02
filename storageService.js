@@ -152,12 +152,14 @@ function normalizeCase(caseRecord){
     description: '',
     internalReference: '',
     measures: [],
+    evidence: [],
     notes: [],
     history: [],
     created: caseRecord.created || Date.now()
   }, caseRecord);
 
   normalized.participants = Array.isArray(normalized.participants) ? normalized.participants : [];
+  normalized.evidence = Array.isArray(normalized.evidence) ? normalized.evidence : [];
   normalized.victims = Array.isArray(normalized.victims) ? normalized.victims : [];
   normalized.suspects = Array.isArray(normalized.suspects) ? normalized.suspects : [];
   normalized.witnesses = Array.isArray(normalized.witnesses) ? normalized.witnesses : [];
