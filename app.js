@@ -522,35 +522,40 @@ class App {
 
     const cardTop = document.createElement('div'); cardTop.className = 'card l';
     cardTop.innerHTML = `
-      <h3>Dashboard</h3>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;">
-        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
-          <div style="font-size:28px;font-weight:800">${openCases}</div>
-          <div class="muted">Offene Fälle</div>
+      <div class="dashboard-card-header">
+        <div>
+          <h3>Dashboard</h3>
+          <p class="muted" style="margin:8px 0 0 0;max-width:620px;line-height:1.65;">Schneller Überblick über offene Vorgänge, bevorstehende Fristen und aktuelle Aktivitäten.</p>
         </div>
-        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
-          <div style="font-size:28px;font-weight:800">${urgentTasks}</div>
-          <div class="muted">Dringende Aufgaben (<=3 Tage)</div>
-        </div>
-        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
-          <div style="font-size:28px;font-weight:800">${newPersons7d}</div>
-          <div class="muted">Neue Personen (7 Tage)</div>
-        </div>
-        <div class="card" style="flex:1;min-width:180px;padding:16px;text-align:left;">
-          <div style="font-size:28px;font-weight:800">${deadlines3d}</div>
-          <div class="muted">Fristen (nächste 3 Tage)</div>
+        <div class="dashboard-card-actions">
+          <button class="btn" id="dashFilterToday">Heute</button>
+          <button class="btn" id="dashFilterHigh">Hohe Priorität</button>
+          <button class="btn" id="dashFilterDone">Erledigte</button>
         </div>
       </div>
-      <div style="margin-top:16px;">
-        <h4 style="margin:0 0 8px 0">Statusverteilung der Fälle</h4>
-        <div style="display:flex;gap:8px;align-items:center">
-          ${Object.keys(statusCounts).map(k=>{ const v = statusCounts[k]; const pct = Math.round((v/totalCases)*100); return `<div style="flex:1"><div class="muted" style="font-size:12px;margin-bottom:6px">${escapeHtml(k)} • ${v}</div><div style="height:8px;background:var(--surface);border-radius:8px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent);"></div></div></div>` }).join('')}
+      <div class="stats">
+        <div class="stat">
+          <strong>${openCases}</strong>
+          <div>Offene Fälle</div>
+        </div>
+        <div class="stat">
+          <strong>${urgentTasks}</strong>
+          <div>Dringende Aufgaben (≤ 3 Tage)</div>
+        </div>
+        <div class="stat">
+          <strong>${newPersons7d}</strong>
+          <div>Neue Akten (7 Tage)</div>
+        </div>
+        <div class="stat">
+          <strong>${deadlines3d}</strong>
+          <div>Fristen in 3 Tagen</div>
         </div>
       </div>
-      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn" id="dashFilterToday">Heute</button>
-        <button class="btn" id="dashFilterHigh">Hohe Priorität</button>
-        <button class="btn" id="dashFilterDone">Erledigte</button>
+      <div class="section" style="margin-top:20px; padding:18px 20px;">
+        <h4 style="margin:0 0 14px 0">Statusverteilung der Fälle</h4>
+        <div class="field-grid" style="grid-template-columns:1fr; gap:14px;">
+          ${Object.keys(statusCounts).map(k=>{ const v = statusCounts[k]; const pct = Math.round((v/totalCases)*100); return `<div style="display:flex;flex-direction:column;gap:6px;"><div class="muted" style="font-size:13px;">${escapeHtml(k)} • ${v}</div><div style="height:10px;background:var(--surface-soft);border-radius:999px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent);"></div></div></div>` }).join('')}
+        </div>
       </div>
     `;
 
@@ -1743,10 +1748,10 @@ class App {
     this.view.appendChild(header);
 
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','measures','notes','history'].forEach(t=>{
+    ['overview','participants','info','measures','notes','history'].forEach(t=>{
       const tab = document.createElement('div');
       tab.className='tab ' + (t === this.current.tab ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[t];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[t];
       tab.addEventListener('click', ()=>{ this.current.tab=t; this.render(); });
       tabs.appendChild(tab);
     });
@@ -1806,18 +1811,38 @@ class App {
         list.appendChild(empty);
       }
       content.appendChild(list);
+    } else if(this.current.tab==='info'){
+      content.innerHTML = `
+        <div class="section">
+          <h4>Vorgangsinformationen</h4>
+          <div class="field-grid three-cols">
+            <div class="field"><label>Fallort</label><div>${escapeHtml(c.location || '—')}</div></div>
+            <div class="field"><label>Verfahrensart</label><div>${escapeHtml(c.processType || '—')}</div></div>
+            <div class="field"><label>Verantwortliche Einheit</label><div>${escapeHtml(c.responsibleUnit || '—')}</div></div>
+            <div class="field"><label>Interne Referenz</label><div>${escapeHtml(c.internalReference || '—')}</div></div>
+            <div class="field"><label>Frist</label><div>${escapeHtml(formatDateEU(c.deadline) || '—')}</div></div>
+            <div class="field"><label>Nächster Schritt</label><div>${escapeHtml(c.nextStep || '—')}</div></div>
+          </div>
+        </div>
+      `;
     } else if(this.current.tab==='measures'){
+      const measures = c.measures || [];
       content.innerHTML = `
         <div class="section">
           <h4>Maßnahmen</h4>
-          <div class="field-grid two-cols">
-            <div class="field"><label>Aktionen</label><div>${(c.measureActions||[]).length ? escapeHtml((c.measureActions||[]).join(', ')) : 'Keine Aktionen dokumentiert'}</div></div>
-            <div class="field"><label>Maßnahmenbeschreibung</label><div>${escapeHtml(c.measureDescription || 'Keine Maßnahmenbeschreibung')}</div></div>
-            <div class="field"><label>Verantwortliche Einheit</label><div>${escapeHtml(c.responsibleUnit || '—')}</div></div>
-            <div class="field"><label>Nächster Schritt</label><div>${escapeHtml(c.nextStep || '—')}</div></div>
-            <div class="field"><label>Frist</label><div>${escapeHtml(formatDateEU(c.deadline) || '—')}</div></div>
-            <div class="field"><label>Fallort</label><div>${escapeHtml(c.location || '—')}</div></div>
-          </div>
+          ${measures.length ? measures.map(measure => `
+            <div class="section note-entry" style="margin-top:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
+                <div>
+                  <strong>${escapeHtml(measure.title || measure.type || 'Unbenannte Maßnahme')}</strong>
+                  <div class="muted">${escapeHtml(measure.type || 'Art nicht angegeben')} • ${escapeHtml(measure.status || 'Offen')}</div>
+                  <div class="muted">Zuständig: ${escapeHtml(measure.assignee || 'Nicht gesetzt')}</div>
+                  <div class="muted">${escapeHtml(formatDateTimeBerlin(measure.created || Date.now()))}</div>
+                </div>
+              </div>
+              <div class="notes-box">${escapeHtml(measure.description || 'Keine Beschreibung vorhanden')}</div>
+            </div>
+          `).join('') : '<div class="notes-box">Keine Maßnahmen vorhanden</div>'}
         </div>
       `;
     } else if(this.current.tab==='notes'){
@@ -1905,8 +1930,11 @@ class App {
 
   renderCaseEdit(caseId){
     const isEdit = !!caseId;
-    const c = isEdit ? this.storage.data.cases.find(x=>x.id===caseId) : {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',location:'',responsibleUnit:'',deadline:'',nextStep:'',processType:'',notes:[],history:[],created:Date.now()};
-    
+    if(!isEdit){
+      this.current.caseDraft = this.current.caseDraft || {title:'',category:'Sonstiges',status:'Offen',date:new Date().toISOString().slice(0,10),time:new Date().toTimeString().slice(0,5),participants:[],victims:[],suspects:[],witnesses:[],reporters:[],priority:[],measureActions:[],measureDescription:'',description:'',location:'',responsibleUnit:'',deadline:'',nextStep:'',processType:'',notes:[],measures:[],history:[],created:Date.now()};
+    }
+    const c = isEdit ? this.storage.data.cases.find(x=>x.id===caseId) : this.current.caseDraft;
+
     this.view.innerHTML = '';
     const header = document.createElement('div'); header.className='record-header';
     header.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><h3>${isEdit ? 'Vorgang bearbeiten' : 'Neuer Vorgang'}</h3><button class="btn" id="cancelCase">Abbrechen</button></div>`;
@@ -1914,9 +1942,9 @@ class App {
     
     this.current.tab = this.current.tab || 'overview';
     const tabs = document.createElement('div'); tabs.className='tabs';
-    ['overview','participants','measures','notes','history'].forEach(key=>{
+    ['overview','participants','info','measures','notes','history'].forEach(key=>{
       const tab = document.createElement('div'); tab.className='tab ' + (this.current.tab===key ? 'active' : '');
-      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[key];
+      tab.textContent = {overview:'Übersicht', participants:'Beteiligte', info:'Vorgangsinformationen', measures:'Maßnahmen', notes:'Notizen', history:'Historie'}[key];
       tab.addEventListener('click', ()=>{ this.current.tab = key; this.renderCaseEdit(caseId); });
       tabs.appendChild(tab);
     });
@@ -1930,7 +1958,7 @@ class App {
     const reportersHtml = this.storage.data.persons.map(p=>`<option value="${p.id}" ${(c.reporters||[]).includes(p.id) ? 'selected' : ''}>${escapeHtml(p.givenName)} ${escapeHtml(p.familyName)}</option>`).join('');
     form.innerHTML = `
       <h3>${isEdit ? 'Vorgang bearbeiten' : 'Neuer Vorgang'}</h3>
-      <div class="section">
+      <div class="section" data-section="overview">
         <div class="field-grid two-cols">
           <div class="field"><label>Vorgangs-ID</label><input name="caseNumber" type="text" value="${escapeHtml(c.caseNumber || '')}" placeholder="Automatisch generiert"></div>
           <div class="field"><label>Titel *</label><input name="title" type="text" value="${escapeHtml(c.title || '')}" required></div>
@@ -1940,36 +1968,68 @@ class App {
           <div class="field"><label>Uhrzeit</label><input type="time" name="time" value="${escapeHtml(c.time || '')}"></div>
           <div class="field"><label>Priorität</label><select name="priority" multiple size="5">${OPTIONS.priorities.map(option => `<option value="${option}" ${(c.priority||[]).includes(option) ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
         </div>
+        <div class="field-block"><label>Beschreibung</label><textarea name="description" placeholder="Erläuterung des Vorgangs...">${escapeHtml(c.description || '')}</textarea></div>
       </div>
-      <div class="section">
+      <div class="section" data-section="participants" style="display:none;">
         <h4>Beteiligte Personen</h4>
         <div class="field-grid two-cols">
           <div class="field"><label>Geschädigte Person(en)</label><select name="victims" multiple size="6">${victimsHtml}</select></div>
           <div class="field"><label>Beschuldigte Person(en)</label><select name="suspects" multiple size="6">${suspectsHtml}</select></div>
           <div class="field"><label>Zeugen</label><select name="witnesses" multiple size="6">${witnessesHtml}</select></div>
           <div class="field"><label>Melder</label><select name="reporters" multiple size="6">${reportersHtml}</select></div>
-          <div class="field"><label>Allgemeine Beteiligte</label><select name="participants" multiple size="6">${personsHtml}</select></div>
+          <div class="field" style="grid-column: span 2"><label>Allgemeine Beteiligte</label><select name="participants" multiple size="6">${personsHtml}</select></div>
         </div>
       </div>
-      <div class="section">
-        <h4>Beschreibung</h4>
-        <div class="field"><textarea name="description" placeholder="Erläuterung des Vorgangs...">${escapeHtml(c.description || '')}</textarea></div>
-      </div>
-      <div class="section">
-        <h4>Verfahren & Steuerung</h4>
+      <div class="section" data-section="info" style="display:none;">
+        <h4>Vorgangsinformationen</h4>
         <div class="field-grid three-cols">
           <div class="field"><label>Fallort</label><input name="location" type="text" value="${escapeHtml(c.location || '')}"></div>
           <div class="field"><label>Verfahrensart</label><input name="processType" type="text" value="${escapeHtml(c.processType || '')}"></div>
           <div class="field"><label>Verantwortliche Einheit</label><input name="responsibleUnit" type="text" value="${escapeHtml(c.responsibleUnit || '')}"></div>
+          <div class="field"><label>Interne Referenz</label><input name="internalReference" type="text" value="${escapeHtml(c.internalReference || '')}"></div>
           <div class="field"><label>Frist</label><input name="deadline" type="date" value="${escapeHtml(c.deadline || '')}"></div>
           <div class="field" style="grid-column: span 2"><label>Nächster Schritt</label><textarea name="nextStep" placeholder="Nächster Schritt / Folgeaufgabe">${escapeHtml(c.nextStep || '')}</textarea></div>
         </div>
       </div>
-      <div class="section">
-        <h4>Maßnahmen</h4>
-        <div class="field-grid two-cols">
-          <div class="field"><label>Dokumentierte Maßnahmen</label><select name="measureActions" multiple size="6">${OPTIONS.measureActions.map(option => `<option value="${option}" ${(c.measureActions||[]).includes(option) ? 'selected' : ''}>${option}</option>`).join('')}</select></div>
-          <div class="field"><label>Maßnahmenbeschreibung</label><textarea name="measureDescription" placeholder="Details zu durchgeführten Maßnahmen...">${escapeHtml(c.measureDescription || '')}</textarea></div>
+      <div class="section" data-section="measures" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h4>Maßnahmen</h4><button class="btn primary" type="button" id="addCaseMeasureButton">+ Neue Maßnahme</button></div>
+        <div id="caseMeasureCreateArea"></div>
+        ${(c.measures || []).length ? (c.measures || []).map(measure => `
+          <div class="section measure-entry" style="margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
+              <div>
+                <strong>${escapeHtml(measure.title || measure.type || 'Unbenannte Maßnahme')}</strong>
+                <div class="muted">${escapeHtml(measure.type || 'Art nicht angegeben')} • ${escapeHtml(measure.status || 'Offen')}</div>
+                <div class="muted">Zuständig: ${escapeHtml(measure.assignee || 'Nicht gesetzt')}</div>
+                <div class="muted">${escapeHtml(formatDateTimeBerlin(measure.created || measure.timestamp || Date.now()))}</div>
+              </div>
+              <button class="btn" type="button" data-delete-measure="${measure.id}">Löschen</button>
+            </div>
+            <div class="notes-box">${escapeHtml(measure.description || 'Keine Beschreibung angegeben')}</div>
+          </div>
+        `).join('') : '<div class="notes-box">Keine Maßnahmen vorhanden</div>'}
+      </div>
+      <div class="section" data-section="notes" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;"><h4>Notizen & Dokumentation</h4><button class="btn primary" type="button" id="addCaseNoteButton">+ Neue Notiz</button></div>
+        <div id="caseNoteCreateArea"></div>
+        ${(c.notes || []).length ? (c.notes || []).map(note => `
+          <div class="section note-entry" style="margin-top:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
+              <div><strong>Notiz</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
+              <button class="btn" type="button" data-delete-note="${note.id}">Löschen</button>
+            </div>
+            <div class="notes-box">${escapeHtml(note.text)}</div>
+          </div>
+        `).join('') : '<div class="notes-box">Keine Notizen vorhanden</div>'}
+      </div>
+      <div class="section" data-section="history" style="display:none;">
+        <h4>Aktivitätsverlauf</h4>
+        <div class="list">
+          ${(c.history || []).slice().sort((a,b)=>b.timestamp-a.timestamp).map(entry => `
+            <div class="item">
+              <div><strong>${escapeHtml(entry.event)}</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(entry.timestamp))}</div></div>
+            </div>
+          `).join('') || '<div class="item"><div class="muted">Keine Einträge vorhanden</div></div>'}
         </div>
       </div>
       <div style="display:flex;gap:12px;margin-top:24px;padding-top:24px;border-top:1px solid var(--border-light)">
@@ -1980,57 +2040,127 @@ class App {
     
     form.querySelector('select[name=category]').value = c.category;
     form.querySelector('select[name=status]').value = c.status;
-    form.querySelectorAll('.section').forEach((section,index)=>{
-      const mapping = ['overview','participants','overview','measures','measures'];
-      section.dataset.section = mapping[index] || 'overview';
+    form.querySelectorAll('.section[data-section]').forEach(section=>{
       section.style.display = section.dataset.section === this.current.tab ? '' : 'none';
     });
-    if(this.current.tab === 'notes' || this.current.tab === 'history'){
-      const content = document.createElement('div'); content.className='card record-card-content';
-      if(this.current.tab === 'notes'){
-        const notesHtml = (c.notes || []).map(note => `
-          <div class="section note-entry">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px;">
-              <div><strong>Notiz</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(note.created))}</div></div>
-              <button class="btn" type="button" data-delete-note="${note.id}">Löschen</button>
-            </div>
-            <div class="notes-box">${escapeHtml(note.text)}</div>
-          </div>
-        `).join('') || '<div class="section"><div class="notes-box">Keine Notizen vorhanden</div></div>';
-        content.innerHTML = `
-          <div class="section" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-            <div><h4>Notizen & Dokumentation</h4></div>
-          </div>
-          ${notesHtml}
-        `;
+
+    const noteCreateArea = form.querySelector('#caseNoteCreateArea');
+    const addNoteBtn = form.querySelector('#addCaseNoteButton');
+    const measureCreateArea = form.querySelector('#caseMeasureCreateArea');
+    const addMeasureBtn = form.querySelector('#addCaseMeasureButton');
+
+    const saveNote = (noteText) => {
+      const notes = [...(c.notes || []), { id: genId('n-'), text: noteText, created: Date.now() }];
+      if(isEdit){
+        this.storage.updateCase(c.id, { notes });
       } else {
-        const history = (c.history || []).slice().sort((a,b)=>b.timestamp - a.timestamp);
-        const historyHtml = history.length ? history.map(entry => `
-          <div class="item">
-            <div><strong>${escapeHtml(entry.event)}</strong><div class="muted">${escapeHtml(formatDateTimeBerlin(entry.timestamp))}</div></div>
-          </div>
-        `).join('') : `<div class="item"><div class="muted">Keine Einträge vorhanden</div></div>`;
-        content.innerHTML = `
+        c.notes = notes;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    const deleteNote = (noteId) => {
+      const notes = (c.notes || []).filter(note => note.id !== noteId);
+      if(isEdit){
+        this.storage.updateCase(c.id, { notes });
+      } else {
+        c.notes = notes;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    const saveMeasure = (measureData) => {
+      const measures = [...(c.measures || []), Object.assign({ id: genId('m-'), created: Date.now(), status: 'Offen' }, measureData)];
+      if(isEdit){
+        this.storage.updateCase(c.id, { measures });
+      } else {
+        c.measures = measures;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    const deleteMeasure = (measureId) => {
+      const measures = (c.measures || []).filter(measure => measure.id !== measureId);
+      if(isEdit){
+        this.storage.updateCase(c.id, { measures });
+      } else {
+        c.measures = measures;
+        this.current.caseDraft = c;
+      }
+      this.renderCaseEdit(caseId);
+    };
+
+    if(addNoteBtn && noteCreateArea){
+      addNoteBtn.addEventListener('click', () => {
+        if(noteCreateArea.innerHTML.trim()) return;
+        noteCreateArea.innerHTML = `
           <div class="section">
-            <h4>Aktivitätsverlauf</h4>
-            <div class="list">
-              ${historyHtml}
+            <div class="field"><label>Neue Notiz</label><textarea id="newCaseNoteText" placeholder="Notiztext"></textarea></div>
+            <div style="display:flex;gap:12px;margin-top:8px;">
+              <button class="btn primary" type="button" id="saveCaseNoteButton">Speichern</button>
+              <button class="btn" type="button" id="cancelCaseNoteButton">Abbrechen</button>
             </div>
           </div>
         `;
-      }
-      this.view.appendChild(content);
-      if(this.current.tab === 'notes'){
-        content.querySelectorAll('[data-delete-note]').forEach(btn => btn.addEventListener('click', () => {
-          const noteId = btn.dataset.deleteNote;
-          const notes = (c.notes || []).filter(note => note.id !== noteId);
-          this.storage.updateCase(c.id, { notes });
-          this.renderCaseEdit(caseId);
-        }));
-      }
-      const cancelBtn = document.createElement('button');
-      return;
+        const saveBtn = noteCreateArea.querySelector('#saveCaseNoteButton');
+        const cancelBtn = noteCreateArea.querySelector('#cancelCaseNoteButton');
+        const noteText = noteCreateArea.querySelector('#newCaseNoteText');
+        saveBtn.addEventListener('click', () => {
+          const text = noteText.value.trim();
+          if(!text) return;
+          saveNote(text);
+        });
+        cancelBtn.addEventListener('click', () => { noteCreateArea.innerHTML = ''; });
+      });
     }
+
+    if(addMeasureBtn && measureCreateArea){
+      addMeasureBtn.addEventListener('click', () => {
+        if(measureCreateArea.innerHTML.trim()) return;
+        measureCreateArea.innerHTML = `
+          <div class="section">
+            <div class="field-grid two-cols" style="gap:18px;">
+              <div class="field"><label>Maßnahme</label><input id="newCaseMeasureTitle" type="text" placeholder="Titel der Maßnahme"></div>
+              <div class="field"><label>Art der Maßnahme</label><select id="newCaseMeasureType">
+                ${OPTIONS.measureActions.map(option => `<option value="${option}">${option}</option>`).join('')}
+              </select></div>
+              <div class="field"><label>Status</label><select id="newCaseMeasureStatus"><option>Offen</option><option>In Arbeit</option><option>Abgeschlossen</option></select></div>
+              <div class="field"><label>Zuständige Person</label><input id="newCaseMeasureAssignee" type="text" placeholder="Name, Team oder Stelle"></div>
+            </div>
+            <div class="field-block"><label>Beschreibung</label><textarea id="newCaseMeasureDescription" placeholder="Maßnahme beschreiben..."></textarea></div>
+            <div style="display:flex;gap:12px;margin-top:16px;justify-content:flex-end;">
+              <button class="btn" type="button" id="cancelCaseMeasureButton">Abbrechen</button>
+              <button class="btn primary" type="button" id="saveCaseMeasureButton">Speichern</button>
+            </div>
+          </div>
+        `;
+        const saveBtn = measureCreateArea.querySelector('#saveCaseMeasureButton');
+        const cancelBtn = measureCreateArea.querySelector('#cancelCaseMeasureButton');
+        saveBtn.addEventListener('click', () => {
+          const title = measureCreateArea.querySelector('#newCaseMeasureTitle').value.trim();
+          const type = measureCreateArea.querySelector('#newCaseMeasureType').value.trim();
+          const status = measureCreateArea.querySelector('#newCaseMeasureStatus').value;
+          const assignee = measureCreateArea.querySelector('#newCaseMeasureAssignee').value.trim();
+          const description = measureCreateArea.querySelector('#newCaseMeasureDescription').value.trim();
+          if(!title && !type) return;
+          saveMeasure({ title: title || type, type, status, assignee, description });
+        });
+        cancelBtn.addEventListener('click', () => { measureCreateArea.innerHTML = ''; });
+      });
+    }
+
+    form.querySelectorAll('[data-delete-note]').forEach(btn => btn.addEventListener('click', () => {
+      const noteId = btn.dataset.deleteNote;
+      deleteNote(noteId);
+    }));
+
+    form.querySelectorAll('[data-delete-measure]').forEach(btn => btn.addEventListener('click', () => {
+      const measureId = btn.dataset.deleteMeasure;
+      deleteMeasure(measureId);
+    }));
     
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -2055,7 +2185,8 @@ class App {
         responsibleUnit: fd.get('responsibleUnit'),
         deadline: fd.get('deadline'),
         nextStep: fd.get('nextStep'),
-        processType: fd.get('processType')
+        processType: fd.get('processType'),
+        internalReference: fd.get('internalReference')
       };
       if(isEdit){
         this.storage.updateCase(caseId, data);
@@ -2063,9 +2194,12 @@ class App {
       } else {
         data.id = genId('c-');
         data.created = Date.now();
+        data.notes = c.notes || [];
+        data.measures = c.measures || [];
         data.history = [{ id: genId('h-'), event: 'Vorgang angelegt', timestamp: Date.now() }];
         this.storage.addCase(data);
         this.current = {type:'case',id:data.id,mode:'view',tab:'overview'};
+        this.current.caseDraft = null;
       }
       this.render();
     });
@@ -2079,9 +2213,9 @@ class App {
       });
     });
 
-    form.querySelector('#cancelForm').addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
+    form.querySelector('#cancelForm').addEventListener('click', ()=>{ this.current.caseDraft = null; this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
     const cancelCaseBtn = header.querySelector('#cancelCase');
-    if(cancelCaseBtn) cancelCaseBtn.addEventListener('click', ()=>{ this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
+    if(cancelCaseBtn) cancelCaseBtn.addEventListener('click', ()=>{ this.current.caseDraft = null; this.current = {type:null,id:null,mode:'view',tab:'stammdaten'}; this.render(); });
     
     this.view.appendChild(form);
   }

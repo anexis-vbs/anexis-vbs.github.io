@@ -150,6 +150,8 @@ function normalizeCase(caseRecord){
     measureActions: [],
     measureDescription: '',
     description: '',
+    internalReference: '',
+    measures: [],
     notes: [],
     history: [],
     created: caseRecord.created || Date.now()
@@ -162,9 +164,11 @@ function normalizeCase(caseRecord){
   normalized.reporters = Array.isArray(normalized.reporters) ? normalized.reporters : [];
   normalized.priority = Array.isArray(normalized.priority) ? normalized.priority : [];
   normalized.measureActions = Array.isArray(normalized.measureActions) ? normalized.measureActions : [];
+  normalized.measures = Array.isArray(normalized.measures) ? normalized.measures : [];
   normalized.notes = Array.isArray(normalized.notes) ? normalized.notes : [];
   normalized.history = Array.isArray(normalized.history) ? normalized.history : [];
   normalized.measureDescription = normalized.measureDescription || '';
+  normalized.internalReference = normalized.internalReference || '';
   normalized.time = normalized.time || '';
 
   const roleIds = new Set([...(normalized.participants || []), ...normalized.victims, ...normalized.suspects, ...normalized.witnesses, ...normalized.reporters]);
@@ -377,6 +381,8 @@ export class LocalStorageStorage {
       measureActions: [],
       measureDescription: '',
       description: '',
+      internalReference: '',
+      measures: [],
       notes: [],
       history: [],
       created: Date.now()
@@ -389,9 +395,11 @@ export class LocalStorageStorage {
     normalized.reporters = Array.isArray(normalized.reporters) ? normalized.reporters : [];
     normalized.priority = Array.isArray(normalized.priority) ? normalized.priority : [];
     normalized.measureActions = Array.isArray(normalized.measureActions) ? normalized.measureActions : [];
+    normalized.measures = Array.isArray(normalized.measures) ? normalized.measures : [];
     normalized.notes = Array.isArray(normalized.notes) ? normalized.notes : [];
     normalized.history = Array.isArray(normalized.history) ? normalized.history : [];
     normalized.measureDescription = normalized.measureDescription || '';
+    normalized.internalReference = normalized.internalReference || '';
     normalized.time = normalized.time || '';
 
     const roleIds = new Set([...(normalized.participants || []), ...normalized.victims, ...normalized.suspects, ...normalized.witnesses, ...normalized.reporters]);
